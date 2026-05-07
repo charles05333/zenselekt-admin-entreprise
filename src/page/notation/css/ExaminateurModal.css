@@ -1,0 +1,685 @@
+/* ExaminateurModal.css */
+.examinateur-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 2100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+/* Forcer SweetAlert à être au-dessus de la modal */
+.swal2-container {
+  z-index: 9999 !important;
+}
+
+.swal2-popup {
+  z-index: 10000 !important;
+}
+
+.swal2-backdrop {
+  z-index: 9998 !important;
+}
+.examinateur-modal-content {
+  background: white;
+  border-radius: 20px;
+  max-width: 750px;
+  width: 100%;
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: modalSlideIn 0.3s ease;
+  box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.examinateur-modal-header {
+  padding: 24px 28px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.examinateur-modal-header h3 {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+  color: #0F1117;
+}
+
+.examinateur-modal-header .text-muted {
+  color: #6b7280;
+  font-size: 13px;
+  margin: 0;
+}
+
+.candidat-info {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: #e0f2fe;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #0369a1;
+  
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #9ca3af;
+  transition: all 0.2s;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-btn:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.examinateur-form {
+  padding: 20px 28px;
+  border-bottom: 1px solid #e5e7eb;
+  background: white;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.form-input, .form-select {
+  flex: 1;
+  min-width: 150px;
+  padding: 10px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: all 0.2s;
+  background: white;
+}
+
+.form-input:focus, .form-select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px #bfdbfe;
+}
+
+.btn-add {
+  padding: 10px 24px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-add:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, #059669, #047857);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.examinateur-liste {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 28px;
+  background: #f9fafb;
+  max-height: 280px;
+}
+
+.examinateur-liste-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.examinateur-liste-header h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0;
+}
+
+.liste-hint {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.examinateur-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: white;
+  border-radius: 12px;
+  margin-bottom: 10px;
+  transition: all 0.2s;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.examinateur-item:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.examinateur-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.examinateur-num {
+  font-weight: 700;
+  color: #9ca3af;
+  font-size: 12px;
+  background: #f3f4f6;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+.examinateur-nom {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 14px;
+}
+
+.examinateur-email {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.examinateur-role {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+.role-rh { background: #e0e7ff; color: #3730a3; }
+.role-technique { background: #d1fae5; color: #065f46; }
+.role-manager { background: #fef3c7; color: #92400e; }
+.role-examinateur { background: #e5e7eb; color: #374151; }
+
+.examinateur-status {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+.status-en_attente { background: #fef3c7; color: #d97706; }
+.status-termine { background: #d1fae5; color: #059669; }
+
+.btn-remove {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.btn-remove:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.examinateur-info-bulle {
+  margin: 16px 28px;
+  padding: 14px 16px;
+  background: #f0f9ff;
+  border-radius: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  
+}
+
+.info-icon {
+  font-size: 18px;
+  color: #0284c7;
+}
+
+.info-text {
+  font-size: 12px;
+  color: #0c4a6e;
+  line-height: 1.5;
+}
+
+.info-text strong {
+  color: #0369a1;
+}
+
+.examinateur-actions {
+  padding: 20px 28px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  background: white;
+}
+
+.btn-cancel {
+  padding: 10px 24px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+  color: #4b5563;
+}
+
+.btn-cancel:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.btn-continue {
+  padding: 10px 28px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-continue:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.btn-continue:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .form-row {
+    flex-direction: column;
+  }
+  
+  .btn-add {
+    width: 100%;
+  }
+  
+  .examinateur-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  
+  .examinateur-item {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .btn-remove {
+    align-self: flex-end;
+  }
+  
+  .examinateur-actions {
+    flex-direction: column;
+  }
+  
+  .btn-cancel, .btn-continue {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .examinateur-modal-header {
+    padding: 20px;
+  }
+  
+  .examinateur-form {
+    padding: 16px 20px;
+  }
+  
+  .examinateur-liste {
+    padding: 16px 20px;
+  }
+  
+  .examinateur-info-bulle {
+    margin: 12px 20px;
+  }
+  
+  .examinateur-actions {
+    padding: 16px 20px;
+  }
+}
+
+/* Ajoutez ces styles à la fin de ExaminateurModal.css */
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.dashboard-header h4 {
+  margin: 0;
+  font-size: 16px;
+  color: #1f2937;
+}
+
+.dashboard-hint {
+  font-size: 12px;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.examinateurs-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.examinateur-card {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.examinateur-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1);
+  border-color: #cbd5e1;
+}
+
+
+
+.examinateur-card-header {
+  padding: 16px;
+  background: #f9fafb;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.examinateur-avatar {
+  width: 45px;
+  height: 45px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.examinateur-card-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.examinateur-name {
+  font-size: 15px;
+  color: #1f2937;
+}
+
+.examinateur-card-info small {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.role-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  width: fit-content;
+}
+
+.role-badge.role-rh { background: #e0e7ff; color: #3730a3; }
+.role-badge.role-technique { background: #d1fae5; color: #065f46; }
+.role-badge.role-manager { background: #fef3c7; color: #92400e; }
+.role-badge.role-examinateur { background: #e5e7eb; color: #374151; }
+
+.examinateur-action-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.examinateur-card-body {
+  padding: 16px;
+}
+
+.note-display {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.note-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: #10b981;
+}
+
+.note-max {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.note-bar {
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.note-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #059669);
+  border-radius: 10px;
+  transition: width 0.3s ease;
+}
+
+.decision-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  width: fit-content;
+  margin: 0 auto;
+}
+
+.decision-badge.success {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.decision-badge.danger {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.commentaire-preview {
+  margin-top: 10px;
+  padding: 8px;
+  background: #f9fafb;
+  border-radius: 8px;
+  font-size: 11px;
+  color: #6b7280;
+  border-left: 2px solid #e5e7eb;
+}
+
+.modifier-hint {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 10px;
+  color: #9ca3af;
+}
+
+.pending-message {
+  text-align: center;
+  padding: 15px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pending-icon {
+  font-size: 32px;
+}
+
+.pending-message span:first-of-type {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f59e0b;
+}
+
+.pending-message small {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.dashboard-summary {
+  margin-top: 20px;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+}
+
+.summary-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 12px;
+}
+
+.summary-stats {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.summary-finale {
+  margin-top: 12px;
+  padding: 10px;
+  background: #d1fae5;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #065f46;
+  text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .examinateurs-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .summary-stats {
+    justify-content: space-between;
+  }
+}
+/* Correction du modal pour que le bouton Fermer soit toujours visible */
+.modal-notation-overlay {
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 20px !important;
+}
+
+.modal-notation-box {
+  max-height: 90vh !important;
+  height: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  background: white !important;
+  border-radius: 20px !important;
+}
+
+/* Zone scrollable pour le contenu */
+.modal-notation-box > div:first-of-type {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  min-height: 0 !important;
+  padding: 20px !important;
+}
+
+/* Bouton Fermer toujours en bas */
+.modal-notation-box .modal-notation-actions,
+.modal-notation-box > div:last-child {
+  flex-shrink: 0 !important;
+  border-top: 1px solid #e5e7eb !important;
+  padding: 16px 24px !important;
+  background: white !important;
+  border-bottom-left-radius: 20px !important;
+  border-bottom-right-radius: 20px !important;
+}

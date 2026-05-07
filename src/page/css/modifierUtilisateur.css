@@ -1,0 +1,371 @@
+/* ============================================================
+   ZENSELEKT 3.0 — modifierUtilisateur.css
+   ============================================================ */
+
+/* ── Card ────────────────────────────────────────────────── */
+.mu-card {
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  padding: 28px 32px;
+}
+
+/* ── Section title ───────────────────────────────────────── */
+.mu-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+}
+.mu-accent-bar {
+  width: 3px;
+  height: 14px;
+  background: var(--blue-zt);
+  border-radius: 2px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* ── Form grid ───────────────────────────────────────────── */
+.mu-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+.mu-field { display: flex; flex-direction: column; }
+.mu-field label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.mu-label-opt {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+.mu-field input {
+  width: 100%;
+  border: 1px solid var(--bg-deep);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: #fff;
+  outline: none;
+  transition: border var(--transition);
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.mu-field input:focus { border-color: var(--blue-zt); }
+.mu-field--error input { border-color: #e74c3c; }
+.mu-field-error {
+  font-size: 10.5px;
+  color: #e74c3c;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Password ────────────────────────────────────────────── */
+.mu-pass-wrap { position: relative; width: 100%; }
+.mu-pass-wrap input { padding-right: 38px; }
+.mu-pass-eye {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+.mu-pass-eye:hover { color: var(--blue-zt); }
+
+.mu-strength-bar {
+  display: flex;
+  gap: 3px;
+  margin-top: 7px;
+}
+.mu-strength-seg {
+  height: 3px;
+  flex: 1;
+  border-radius: 3px;
+  background: var(--bg-deep);
+  transition: background 0.25s ease;
+}
+.mu-strength-txt {
+  font-size: 10px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+/* ── Divider ─────────────────────────────────────────────── */
+.mu-divider {
+  height: 1px;
+  background: var(--bg-deep);
+  margin: 24px 0;
+}
+
+/* ── Permissions ─────────────────────────────────────────── */
+.mu-perms-wrap { margin-top: 4px; }
+.mu-perms-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.mu-select-all {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--blue-zt);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: opacity var(--transition);
+}
+.mu-select-all:hover { opacity: 0.75; }
+
+.mu-perms-error {
+  background: rgba(231, 76, 60, 0.08);
+  border: 1px solid rgba(231, 76, 60, 0.25);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #e74c3c;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mu-perm-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.mu-perm-item {
+  border: 1px solid var(--bg-deep);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color var(--transition);
+}
+.mu-perm-item--active { border-color: rgba(10, 120, 181, 0.3); }
+
+.mu-perm-parent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  cursor: pointer;
+  background: #fafbfd;
+  transition: background var(--transition);
+}
+.mu-perm-parent:hover { background: rgba(10, 120, 181, 0.04); }
+.mu-perm-parent input[type="checkbox"] {
+  accent-color: var(--blue-zt);
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.mu-perm-icon { font-size: 13px; color: var(--text-muted); flex-shrink: 0; }
+.mu-perm-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  cursor: pointer;
+}
+.mu-perm-children {
+  border-top: 1px solid var(--bg-deep);
+  padding: 6px 8px 8px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: #fff;
+  animation: muSlide 0.18s ease;
+}
+@keyframes muSlide {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+.mu-perm-child {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.mu-perm-child input[type="checkbox"] {
+  accent-color: var(--blue-zt);
+  width: 12px;
+  height: 12px;
+  cursor: pointer;
+}
+.mu-perm-child:hover { color: var(--blue-zt); }
+
+/* ── Boutons ─────────────────────────────────────────────── */
+.mu-btn-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--bg-deep);
+}
+.mu-btn {
+  padding: 9px 22px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+}
+.mu-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.mu-btn--primary {
+  background: linear-gradient(135deg, var(--blue-zt), var(--blue-zt2));
+  color: #fff;
+  border: none;
+}
+.mu-btn--primary:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+.mu-btn--ghost {
+  background: var(--white);
+  color: var(--text-secondary);
+  border: 1px solid var(--bg-deep);
+}
+.mu-btn--ghost:hover:not(:disabled) { background: var(--bg-deep); }
+
+/* ── Spinner ─────────────────────────────────────────────── */
+.mu-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: muSpin 0.7s linear infinite;
+  display: inline-block;
+}
+.mu-spinner--lg {
+  width: 24px;
+  height: 24px;
+  border-width: 3px;
+  border-color: var(--bg-deep);
+  border-top-color: var(--blue-zt);
+}
+@keyframes muSpin { to { transform: rotate(360deg); } }
+
+/* ── Card loading ────────────────────────────────────────── */
+.mu-card--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 56px;
+}
+
+/* ── Succès ──────────────────────────────────────────────── */
+.mu-success-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 56px 24px;
+  text-align: center;
+  gap: 12px;
+  animation: muFadeIn 0.22s ease;
+}
+.mu-success-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(46, 202, 106, 0.12);
+  color: var(--green);
+  font-size: 24px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mu-success-card h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+.mu-success-card p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+.mu-success-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ── Not found ───────────────────────────────────────────── */
+.mu-notfound {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 56px 24px;
+  gap: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.mu-notfound i { font-size: 40px; opacity: 0.3; }
+.mu-notfound p { font-size: 13px; margin: 0; }
+
+/* ── Animation ───────────────────────────────────────────── */
+@keyframes muFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .mu-card { padding: 22px 20px; }
+}
+@media (max-width: 640px) {
+  .mu-form-grid { grid-template-columns: 1fr; }
+  .mu-perm-grid { grid-template-columns: 1fr; }
+  .mu-card { padding: 18px 14px; }
+}
+
+/* ── Fil d'Ariane cliquable ──────────────────────────────── */
+.page-sub-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  font-family: inherit;
+  color: var(--blue-zt);
+  cursor: pointer;
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+.page-sub-link:hover {
+  opacity: 0.75;
+  text-decoration: underline;
+}

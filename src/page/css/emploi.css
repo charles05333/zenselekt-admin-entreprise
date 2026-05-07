@@ -1,0 +1,362 @@
+/* ============================================================
+   emploi.css — Zenselekt — vue publique des offres
+   Reprend le système de design tokens existant
+   ============================================================ */
+.offres-page,
+.offres-toolbar,
+.offres-table-footer,
+.offres-cards-mobile,
+.offres-mobile-card {
+  background: transparent !important;
+  background-image: none !important;
+}
+/* ── Table — espacement & centrage ───────────────────────── */
+.offres-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 15px; min-width: 960px;
+}
+
+.offres-table th {
+  padding: 14px 20px; text-align: center;
+  color: var(--text-secondary); font-weight: 600; font-size: 14px;
+  border-bottom: 1px solid var(--bg-deep); white-space: nowrap;
+  font-family: var(--font-fb);
+}
+
+.offres-table td {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f4fb;
+  vertical-align: middle;
+  text-align: center;
+}
+
+/* Titre aligné à gauche uniquement */
+.offres-td-titre {
+  font-weight: 500;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.offres-td-muted {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  text-align: center;
+}
+
+/* Badge postulants centré */
+.offres-postulants-badge {
+  font-weight: 700; color: var(--blue-zt); font-size: 15px;
+  background: #e6f4ff; border-radius: 20px;
+  padding: 3px 14px; display: inline-block;
+}
+
+/* Partager centré */
+.offres-share {
+  display: flex; gap: 12px;
+  align-items: center;
+  justify-content: center;
+}
+.offres-share a {
+  font-size: 17px; text-decoration: none;
+  transition: opacity .15s, transform .15s;
+}
+.offres-share a:hover { opacity: .75; transform: translateY(-1px); }
+.offres-share a.linkedin { color: #0077b5; }
+.offres-share a.whatsapp { color: #25d366; }
+
+.offres-copy-btn {
+  border: none; background: none; cursor: pointer;
+  font-size: 16px; padding: 0; color: #7C8596;
+  transition: color .15s, transform .15s;
+  line-height: 1;
+}
+.offres-copy-btn:hover { color: #0F1117; transform: translateY(-1px); }
+.offres-copy-btn.copied { color: #059669; }
+
+/* Actions centrées */
+.offres-actions {
+  display: flex; gap: 10px;
+  align-items: center;
+  justify-content: center;
+}
+
+.offres-voir-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 8px;
+  color: #7C8596; text-decoration: none; font-size: 16px;
+  transition: background .15s, color .15s;
+}
+.offres-voir-btn:hover { background: #e6f4ff; color: var(--blue-zt); }
+
+/* Statut centré */
+.offres-statut {
+  display: inline-block; padding: 4px 12px;
+  border-radius: 20px; font-size: 12px; font-weight: 500;
+}
+.offres-statut--ok   { background: #ECFDF5; color: #059669; }
+.offres-statut--wait { background: #FFFBEB; color: #D97706; }
+
+/* Type chip */
+.offres-type-chip {
+  display: inline-block; padding: 3px 10px;
+  border-radius: 6px; background: #F2F4F7; color: #3D4350;
+  font-size: 12px; font-weight: 600; letter-spacing: .03em;
+  text-transform: uppercase;
+}
+
+/* Toolbar avec plus d'espace */
+.offres-toolbar {
+  padding: 20px 24px;
+  display: flex; align-items: center;
+  justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+  border-bottom: 1px solid var(--bg-deep);
+}
+
+/* Search */
+.offres-search {
+  display: flex; align-items: center; gap: 10px;
+  background: #FFF;
+  border-radius: 40px;
+  padding: 9px 18px;
+  flex: 1 1 220px; max-width: 340px;
+  transition: background .16s;
+}
+.offres-search:focus-within { background: #EBF2FF; }
+.offres-search i { color: #7C8596; font-size: 15px; flex-shrink: 0; }
+.offres-search:focus-within i { color: var(--blue-zt); }
+.offres-search input {
+  border: none; background: transparent; outline: none;
+  font-size: 15px; color: var(--text-primary);
+  width: 100%; font-family: var(--font-fb);
+}
+.offres-search input::placeholder { color: #A8B0BF; }
+
+.offres-search-clear {
+  border: none; background: none; cursor: pointer;
+  color: #7C8596; font-size: 15px; padding: 0; line-height: 1;
+  flex-shrink: 0; display: flex; align-items: center;
+  transition: color .15s;
+}
+.offres-search-clear:hover { color: #0F1117; }
+
+/* Card - SUPPRESSION DU FOND GRIS */
+.offres-card {
+  background: white; /* Changé de white à transparent */
+  border-radius: var(--radius-lg);
+  box-shadow: none; /* Supprimé l'ombre */
+  overflow: hidden;
+}
+
+/* Table wrap */
+.offres-table-wrap { overflow-x: auto; }
+
+/* Footer table */
+.offres-table-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--bg-deep);
+  font-size: 14px;
+  color: var(--text-muted);
+  font-family: var(--font-fb);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.offres-footer-info strong { color: var(--text-secondary); font-weight: 600; }
+.offres-footer-search { color: var(--blue-zt); font-weight: 500; }
+
+/* Thead background */
+.offres-table thead tr { background: #f8fafc; }
+.offres-table tbody tr { background: var(--white); transition: background .15s; }
+.offres-table tbody tr:nth-child(even) { background: #fafbff; }
+.offres-table tbody tr:hover { background: #f0f6ff; }
+
+/* Empty state */
+.offres-empty {
+  text-align: center; padding: 56px 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.offres-empty-icon {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: #F2F4F7;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; color: #A8B0BF; margin-bottom: 4px;
+}
+.offres-empty p  { margin: 0; color: #3D4350; font-weight: 600; font-size: 15px; }
+.offres-empty span { color: #7C8596; font-size: 13px; }
+
+/* Pagination */
+.offres-pagination { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.offres-page-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 7px 13px; border-radius: 8px;
+  border: none; background: #F2F4F7;
+  color: #7C8596; font-size: 13px;
+  font-family: var(--font-fb); cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.offres-page-btn:hover:not(:disabled) { background: #EBF2FF; color: var(--blue-zt); }
+.offres-page-btn:disabled { opacity: .4; cursor: not-allowed; }
+.offres-page-label { font-size: 13px; font-weight: 500; }
+
+.offres-page-num {
+  width: 34px; height: 34px; border-radius: 8px;
+  border: none; background: transparent;
+  color: #7C8596; font-size: 13px; font-weight: 500;
+  font-family: var(--font-fb); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+}
+.offres-page-num:hover { background: #F2F4F7; color: #0F1117; }
+.offres-page-num--active { background: var(--blue-zt); color: #fff; font-weight: 700; }
+.offres-page-ellipsis {
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  color: #A8B0BF; font-size: 13px;
+}
+
+/* ============================================================
+   CARTES MOBILE
+   — masquées par défaut, visibles en ≤ 768px
+   ============================================================ */
+.offres-cards-mobile { display: none; }
+
+.offres-mobile-card {
+  background: var(--white);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 6px rgba(0,0,0,.06);
+  transition: transform .15s, box-shadow .15s;
+  animation: cardIn .25s ease both;
+}
+.offres-mobile-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,.10);
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.offres-mobile-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid #f0f4fb;
+}
+
+.offres-mobile-card__title {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.35;
+  margin-bottom: 6px;
+}
+
+.offres-mobile-card__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.offres-mobile-card__item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 11px 16px;
+  border-bottom: 1px solid #f0f4fb;
+}
+
+/* Séparateur vertical entre colonnes */
+.offres-mobile-card__item:nth-child(odd) {
+  border-right: 1px solid #f0f4fb;
+}
+
+.offres-mobile-card__label {
+  font-size: 10px;
+  color: #A8B0BF;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+}
+
+.offres-mobile-card__value {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.offres-mobile-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  gap: 12px;
+  background: #fafbff;
+}
+
+.offres-mobile-card__voir {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600; color: var(--blue-zt);
+  text-decoration: none; padding: 7px 16px;
+  border-radius: 20px; background: #e6f4ff;
+  transition: background .15s;
+  white-space: nowrap;
+}
+.offres-mobile-card__voir:hover { background: #BFDBFE; }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 768px) {
+  /* Cache la table, affiche les cartes */
+  .offres-table-wrap  { display: none; }
+  .offres-cards-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    background: #F7F8FA;
+  }
+
+  .offres-toolbar {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 14px 16px;
+  }
+  .offres-search { max-width: 100%; flex: 1 1 0; min-width: 0; }
+
+  .offres-table-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+  .offres-pagination { width: 100%; justify-content: center; }
+  .offres-page-label { display: none; }
+}
+
+@media (max-width: 600px) {
+  .offres-cards-mobile { padding: 10px; gap: 10px; }
+  .offres-footer-info  { font-size: 12px; }
+}
+
+@media (max-width: 480px) {
+  /* Grille en 1 colonne */
+  .offres-mobile-card__grid { grid-template-columns: 1fr; }
+  .offres-mobile-card__item:nth-child(odd) { border-right: none; }
+  .offres-mobile-card__item { padding: 9px 14px; }
+
+  .offres-mobile-card__footer {
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+  }
+  .offres-mobile-card__footer .offres-share { justify-content: center; }
+  .offres-mobile-card__voir { justify-content: center; }
+}

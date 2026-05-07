@@ -1,0 +1,220 @@
+@import url("https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap");
+
+/* ── Sidebar shell ── */
+.zs-sidebar {
+  width: 250px;
+  min-height: 100vh;
+  background: #0a2540;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  overflow: hidden;
+}
+
+/* ── Logo bar ── */
+.zs-sidebar__logo {
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.zs-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.zs-brand__text {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.zs-brand__name {
+  font-family: "Syne", sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.4px;
+}
+
+.zs-brand__version {
+  font-size: 10px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #0a78b5, #0da3d8);
+  color: #fff;
+  padding: 2px 7px;
+  border-radius: 20px;
+  letter-spacing: 0.2px;
+}
+
+/* ── Navigation ── */
+.zs-sidebar__nav {
+  flex: 1;
+  padding: 14px 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.zs-sidebar__nav::-webkit-scrollbar {
+  width: 0;
+}
+
+.zs-nav__group {
+  margin-bottom: 6px;
+}
+
+.zs-nav__section-label {
+  display: block;
+  font-family: "DM Sans", sans-serif;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.28);
+  padding: 12px 10px 6px;
+}
+
+.zs-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 13px;
+  border-radius: 10px;
+  cursor: pointer;
+  text-decoration: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: "DM Sans", sans-serif;
+  font-size: 13.5px;
+  font-weight: 400;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.zs-nav__item:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+}
+
+.zs-nav__item--active {
+  background: linear-gradient(135deg, #0a78b5, #0550a0);
+  color: #fff !important;
+  font-weight: 500;
+  box-shadow: 0 4px 14px rgba(10, 120, 181, 0.35);
+}
+
+.zs-nav__icon {
+  font-size: 15px;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* ── User footer ── */
+.zs-sidebar__footer {
+  padding: 14px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.zs-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.zs-user__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0a78b5, #0550a0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Syne", sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+}
+
+.zs-user__info {
+  min-width: 0;
+}
+
+.zs-user__name {
+  font-family: "DM Sans", sans-serif;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #fff;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zs-user__role {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.38);
+  margin: 0;
+}
+
+.zs-logout {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 14px;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.zs-logout:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .zs-sidebar {
+    width: 68px;
+  }
+  .zs-brand__text,
+  .zs-nav__section-label,
+  .zs-nav__item span,
+  .zs-user__info,
+  .zs-brand__version {
+    display: none;
+  }
+  .zs-nav__item {
+    justify-content: center;
+    padding: 12px;
+  }
+  .zs-nav__icon {
+    font-size: 17px;
+    width: auto;
+  }
+  .zs-sidebar__footer {
+    justify-content: center;
+  }
+  .zs-logout {
+    display: none;
+  }
+}

@@ -1,0 +1,306 @@
+/* ============================================================
+   ZENSELEKT 3.0 — Header.css
+   ============================================================ */
+
+/* ── Variables (partagées) ──────────────────────────────── */
+:root {
+  --blue:       #4154f1;
+  --blue-dark:  #012970;
+  --blue-zt:    #0a78b5;
+  --blue-zt2:   #0550a0;
+  --green:      #2eca6a;
+  --bg:         #f0f4fb;
+  --bg-deep:    #e8eef8;
+  --white:      #ffffff;
+  --sidebar-w:  256px;
+  --header-h:   64px;
+
+  --text-primary:   #0d1f4e;
+  --text-secondary: #5a6f99;
+  --text-muted:     #93a4c3;
+
+  --accent-1: rgba(65, 84, 241, 0.08);
+  --accent-2: rgba(10, 120, 181, 0.07);
+
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+
+  --transition: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+
+  --font-fb: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+             Helvetica, Arial, sans-serif;
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+.app-header {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: var(--header-h);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 10px;
+  z-index: 1000;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* Logo */
+.header-logo {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-width: 0;
+}
+.brand-logo {
+  max-height: 34px;
+  width: auto;
+  display: block;
+}
+
+/* Toggle btn */
+.toggle-btn {
+  font-size: 22px;
+  color: var(--text-primary);
+  padding: 7px;
+  border-radius: var(--radius-sm);
+  line-height: 1;
+  transition: background var(--transition), color var(--transition);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+.toggle-btn:hover { background: var(--accent-1); color: var(--blue); }
+
+/* Search */
+.header-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg);
+  border-radius: 40px;
+  padding: 7px 14px;
+  flex: 1;
+  min-width: 0;
+  max-width: 360px;
+  transition: background var(--transition);
+}
+.header-search:focus-within { background: #e4ecf8; }
+.search-ico { font-size: 13px; color: var(--text-muted); flex-shrink: 0; }
+.search-input {
+  border: none; outline: none;
+  font-size: 13px;
+  font-family: var(--font-fb);
+  color: var(--text-primary);
+  background: transparent;
+  width: 100%;
+  min-width: 0;
+}
+.search-input::placeholder { color: var(--text-muted); }
+
+/* Right zone */
+.header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.header-icon-btn {
+  font-size: 18px;
+  color: var(--text-secondary);
+  padding: 8px;
+  border-radius: 50%;
+  transition: background var(--transition), color var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+.header-icon-btn:hover { background: var(--accent-1); color: var(--blue); }
+
+.header-brand-wrap {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  padding: 5px 8px;
+  border-radius: 40px;
+  transition: background var(--transition);
+  flex-shrink: 0;
+}
+.header-brand-wrap:hover { background: var(--accent-2); }
+.brand-logos { max-height: 26px; width: auto; display: block; }
+
+.profile-chevron {
+  transition: transform var(--transition);
+  font-size: 11px;
+  color: #93a4c3;
+}
+.profile-chevron.open { transform: rotate(180deg); }
+
+/* ── Notification Dropdown ───────────────────────────────── */
+.notif-dropdown {
+  position: absolute;
+  top: calc(var(--header-h) - 10px);
+  right: 0;
+  width: 290px;
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  z-index: 9999;
+  overflow: hidden;
+  animation: fadeInDown 0.2s ease;
+  padding: 4px;
+}
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-10px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+.notif-body { padding: 18px 16px; }
+.notif-greeting {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.notif-sub { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+
+/* ── Profile Dropdown ────────────────────────────────────── */
+.profile-dropdown {
+  position: absolute;
+  top: calc(var(--header-h) - 10px);
+  right: 0;
+  width: 200px;
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  z-index: 9999;
+  overflow: hidden;
+  animation: fadeInDown 0.2s ease;
+  padding: 6px;
+}
+.profile-divider { height: 1px; background: var(--bg-deep); margin: 4px 0; }
+.profile-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-fb);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition), color var(--transition);
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+.profile-menu-item:hover { background: var(--bg); color: var(--text-primary); }
+.profile-menu-item--danger { color: #e53e3e; }
+.profile-menu-item--danger:hover { background: #fff5f5; color: #c53030; }
+.profile-menu-item .bi { font-size: 15px; }
+
+/* ── Search Overlay (mobile) ─────────────────────────────── */
+.search-overlay {
+  position: fixed; inset: 0;
+  background: rgba(1, 41, 112, 0.4);
+  backdrop-filter: blur(6px);
+  z-index: 2000;
+  display: flex;
+  align-items: flex-start;
+  padding-top: 12px;
+}
+.search-overlay-inner {
+  width: calc(100% - 24px);
+  max-width: 600px;
+  margin: 0 auto;
+  background: var(--white);
+  border-radius: 40px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+.search-overlay-ico { font-size: 15px; color: var(--text-muted); flex-shrink: 0; }
+.search-overlay-input {
+  flex: 1; border: none; outline: none;
+  font-size: 15px;
+  font-family: var(--font-fb);
+  color: var(--text-primary);
+  background: transparent;
+}
+.search-overlay-input::placeholder { color: var(--text-muted); }
+.search-overlay-close {
+  font-size: 16px;
+  color: var(--text-muted);
+  padding: 4px;
+  border-radius: 50%;
+  transition: background var(--transition), color var(--transition);
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none; cursor: pointer; flex-shrink: 0;
+}
+.search-overlay-close:hover { background: var(--bg); color: var(--text-primary); }
+
+/* ── Responsive Header ───────────────────────────────────── */
+
+/* Tablettes (≤ 900px) */
+@media (max-width: 900px) {
+  .app-header { padding: 0 14px; gap: 8px; }
+  .header-search { max-width: 240px; }
+}
+
+/* Mobile large (≤ 768px) */
+@media (max-width: 768px) {
+  :root { --header-h: 56px; }
+  .app-header { padding: 0 12px; gap: 6px; }
+  .header-search { max-width: 180px; padding: 6px 12px; }
+  .brand-logo { max-height: 28px; }
+  .brand-logos { max-height: 22px; }
+  .header-icon-btn { padding: 7px; font-size: 16px; }
+}
+
+/* Mobile standard (≤ 600px) : masquer la barre de recherche */
+@media (max-width: 600px) {
+  .header-search { display: none; }
+  .app-header { padding: 0 10px; gap: 4px; }
+  .header-right { gap: 2px; }
+}
+
+/* Mobile petit (≤ 420px) */
+@media (max-width: 420px) {
+  :root { --header-h: 52px; }
+  .brand-logo { max-height: 24px; }
+  .brand-logos { max-height: 20px; }
+  .header-icon-btn { padding: 6px; font-size: 15px; }
+  .header-brand-wrap { padding: 4px 6px; gap: 3px; }
+  .profile-chevron { display: none; }
+}
+
+/* Très petit mobile (≤ 360px) */
+@media (max-width: 360px) {
+  .app-header { padding: 0 8px; gap: 2px; }
+  .brand-logo { max-height: 22px; }
+  .header-icon-btn { padding: 5px; }
+}
+
+/* Dropdowns mobile */
+@media (max-width: 480px) {
+  .notif-dropdown { width: calc(100vw - 24px); right: -4px; }
+  .profile-dropdown { width: calc(100vw - 24px); right: -4px; }
+}
