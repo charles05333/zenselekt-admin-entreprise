@@ -367,7 +367,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 /* ── Stat Label — corrigé : 13px au lieu de 17px ── */
 .stat-label {
-  font-size: 13px!important;
+  font-size: 15px!important;
   font-weight: 500;
   color: var(--text-secondary);
   line-height: 1.4;

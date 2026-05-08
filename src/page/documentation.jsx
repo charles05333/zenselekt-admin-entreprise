@@ -27,17 +27,19 @@ const DOCS = [
       {
         id: "presentation",
         title: "Présentation de Zenselekt 3.0",
-        content: `Zenselekt 3.0 est une plateforme de gestion RH entreprise conçue pour centraliser et digitaliser l'intégralité du cycle de recrutement : de la publication d'une offre jusqu'au recrutement final du candidat.
+        content: `Zenselekt 3.0 est une plateforme RH entreprise nouvelle génération, pensée pour centraliser, automatiser et digitaliser l’ensemble du processus de recrutement, depuis la diffusion des offres d’emploi jusqu’à la sélection et l’intégration des meilleurs talents.
 
-La solution s'adresse aux équipes RH de PME, ETI et grandes entreprises souhaitant piloter leurs processus de recrutement avec rigueur, traçabilité et efficacité.`,
+Destinée aux PME, PMI et grandes entreprises, la solution permet aux équipes RH de piloter leurs recrutements avec précision, efficacité, traçabilité et performance, tout en optimisant la prise de décision grâce à des outils intelligents d’évaluation et de matching avancé.`,
       },
       {
         id: "perimetre",
         title: "Périmètre fonctionnel",
         content: `La plateforme couvre les domaines suivants :
 
-• Gestion des offres d'emploi et des annonces
-• Gestion de la candidathèque et des postulants
+• Gestion des annonces
+• Consultation des emplois/postulants
+• Gestion de la candidathèque générale
+• Gestion des candidatures spontanées
 • Campagnes d'évaluation (tests psychotechniques, MBTI, Big Five, Anglais, Pression)
 • Présélection, notation et shortlisting
 • Gestion des utilisateurs et des droits d'accès
@@ -101,9 +103,8 @@ Les offres peuvent être filtrées par type de contrat ou par statut. Une barre 
         content: `En cliquant sur une offre, vous accédez à la liste des candidats ayant postulé. Depuis cette vue, vous pouvez :
 
 • Consulter le profil complet de chaque postulant
-• Accéder à ses résultats de tests si une campagne d'évaluation a été lancée
-• Modifier le statut du candidat dans le processus (En attente, Présélectionné, Retenu, Refusé)
-• Exporter la liste au format PDF ou Excel`,
+• Modifier le statut du candidat dans le processusf (En attente, Présélectionné, Retenu, Refusé)
+• Exporter la liste au format Excel`,
       },
       {
         id: "candidatheque",
@@ -112,7 +113,7 @@ Les offres peuvent être filtrées par type de contrat ou par statut. Une barre 
 
 • La recherche multicritère (nom, compétences, secteur, niveau d'étude)
 • La consultation des profils complets avec historique de candidatures
-• L'ajout manuel d'un candidat externe
+
 
 Les candidatures spontanées sont accessibles via le menu dédié et suivent le même circuit de traitement.`,
       },
@@ -142,47 +143,114 @@ Chaque test dispose d'un statut (Activé / Désactivé) gérable depuis la banqu
         content: `Une campagne d'évaluation permet d'associer un ou plusieurs tests à un groupe de candidats ciblé (par offre, par poste ou manuellement sélectionné).
 
 Étapes de création d'une campagne :
-1. Nommer la campagne et définir sa période de validité.
-2. Sélectionner les tests à inclure depuis la banque.
-3. Assigner les candidats concernés.
-4. Lancer la campagne — les candidats reçoivent un lien d'accès sécurisé.
-5. Suivre l'avancement en temps réel (taux de complétion, résultats).
+1. Sélectionner les tests à inclure depuis la banque.
+2. Assigner les candidats concernés.
+3. Lancer la campagne — les candidats reçoivent un lien d'accès sécurisé.
+4. Suivre l'avancement en temps réel (taux de complétion, résultats).
 
 Les résultats sont automatiquement consolidés dans la fiche de chaque candidat et alimentent le module de présélection.`,
       },
     ],
   },
   {
-    id: "preselection",
-    label: "Présélection",
-    icon: "bi-clipboard-check",
-    sections: [
-      {
-        id: "postes",
-        title: "Gestion des postes",
-        content: `La liste des postes regroupe les positions ouvertes au recrutement, indépendamment des annonces publiées. Un poste peut être associé à plusieurs offres et à plusieurs vagues de recrutement.
+  id: "preselection",
+  label: "Présélection",
+  icon: "bi-clipboard-check",
+  sections: [
+    {
+      id: "postes",
+      title: "Gestion des postes",
+      content: `La liste des postes regroupe les positions ouvertes au recrutement. Depuis la vue d'un poste, vous accédez à un espace de présélection structuré en quatre onglets :
 
-Depuis la vue poste, vous accédez au module de présélection complet :
+- Présélection — évaluation manuelle des candidats via une grille critériée notée sur 100 (adéquation au profil, expérience, formation, compétences techniques…).
+- Entretiens — notation technique des candidats convoqués, à partir d'une grille et d'examinateurs définis pour le poste.
+- Shortlist — candidats classés en réserve, triés par score décroissant. Permet de générer un rapport individuel exportable (PDF / Word) avec présentation, critères d'entretien et avis pour l'entreprise.
+- Candidats recrutés — candidats retenus, avec leur date de prise de fonction et type de contrat.`,
+    },
+    {
+      id: "seuil-preselection",
+      title: "Seuil de présélection",
+      content: `Le seuil de présélection est configuré une seule fois par poste, depuis le bandeau POSTE en haut de la page.
 
-• Notation manuelle par examinateur (grille critériée)
-• Visualisation des scores de tests
-• Génération d'un rapport de shortlist exportable (PDF / Word)`,
-      },
-      {
-        id: "notation",
-        title: "Notation et shortlisting",
-        content: `Le module de notation permet à un ou plusieurs examinateurs d'évaluer les candidats présélectionnés selon des critères définis.
+Comment le définir :
+1. Ouvrez l'onglet Présélection d'un poste.
+2. Cliquez sur le bouton "Créer le seuil de présélection" affiché à gauche du nom du poste.
+3. Choisissez le pourcentage minimum requis (de 10 % à 100 %).
+4. Confirmez — le seuil est immédiatement appliqué à tous les candidats du poste.
 
-Fonctionnalités disponibles :
+Une fois défini, le bouton affiche le seuil actuel en vert (ex. : "Seuil : 70 %"). Vous pouvez le modifier à tout moment en cliquant à nouveau dessus.
 
-• Grille d'évaluation configurable (compétences techniques, soft skills, adéquation culturelle)
-• Notation individuelle ou collégiale avec réconciliation des scores
-• Définition d'un seuil de présélection automatique
-• Classement automatique des candidats par score global
-• Export du rapport de shortlist au format PDF ou Word, incluant les profils, scores et recommandations`,
-      },
-    ],
-  },
+À partir de ce moment, lorsqu'un RH clique sur "Évaluer" pour un candidat, la fiche de notation s'ouvre directement, sans redemander le seuil.`,
+    },
+    {
+      id: "notation",
+      title: "Notation des CV",
+      content: `La notation des CV s'effectue depuis l'onglet Présélection. Pour évaluer un candidat :
+
+1. Cliquez sur le bouton "Évaluer" (ou "Modifier" si le candidat a déjà été noté) sur la ligne du candidat.
+2. La grille de notation s'ouvre directement — aucune configuration supplémentaire n'est requise si le seuil du poste est déjà défini.
+3. Renseignez les notes pour chaque critère : adéquation au profil, expérience professionnelle, niveau de responsabilité, formation, compétences techniques, qualité du CV, expérience en environnement exigeant.
+4. Le score total est calculé automatiquement sur 100.
+5. Cliquez sur "Valider" pour enregistrer.
+
+Décision automatique :
+- Score ≥ 70 — le candidat est convoqué en entretien technique et passe dans l'onglet Entretiens.
+- Score < 70 — le candidat est rejeté.`,
+    },
+    {
+      id: "grille-entretien",
+      title: "Grille de notation (Entretiens)",
+      content: `La grille de notation pour les entretiens est configurée une seule fois par poste, depuis le bandeau POSTE de l'onglet Entretiens.
+
+Comment la créer :
+1. Ouvrez l'onglet Entretiens d'un poste.
+2. Cliquez sur le bouton "Grille de notation" affiché à gauche du nom du poste.
+3. Ajoutez, modifiez ou supprimez des critères et leurs sous-questions.
+4. Définissez le seuil de passage en Shortlist (pourcentage de réussite requis).
+5. Confirmez — la grille est enregistrée pour le poste.
+
+Une fois configurée, le bouton passe au vert ("Grille configurée"). La même grille sera automatiquement utilisée pour l'évaluation de tous les candidats de ce poste, sans avoir à la recréer.
+
+Barème de notation par question :
+- 1 — Insuffisant
+- 2 — Faible
+- 3 — Moyen
+- 4 — Bon
+- 5 — Très bon`,
+    },
+    {
+      id: "examinateurs",
+      title: "Création des examinateurs",
+      content: `Les examinateurs sont configurés une seule fois par poste, depuis le bandeau POSTE de l'onglet Entretiens.
+
+Comment les créer :
+1. Ouvrez l'onglet Entretiens d'un poste.
+2. Cliquez sur le bouton "Création d'examinateurs" affiché à gauche du nom du poste.
+3. Renseignez le nom, l'email et le rôle (examinateur, observateur…) de chaque évaluateur.
+4. Confirmez — les examinateurs sont enregistrés pour le poste.
+
+Une fois configurés, le bouton passe au vert et affiche le nombre d'examinateurs assignés (ex. : "2 examinateur(s)").
+
+Lors de la notation d'un candidat :
+1. Cliquez sur "Modifier notation" sur la ligne du candidat.
+2. La liste des examinateurs du poste s'affiche automatiquement.
+3. Sélectionnez l'examinateur qui va noter ce candidat.
+4. Cliquez sur "Noter ce candidat" — la grille de notation s'ouvre.`,
+    },
+    {
+      id: "shortlist",
+      title: "Shortlist et recrutement",
+      content: `L'onglet Shortlist regroupe les candidats ayant passé avec succès l'étape d'entretien. Ils sont triés automatiquement par score décroissant et classés par rang (1er, 2ème, 3ème…).
+
+Actions disponibles :
+- Recruter — bascule le candidat dans l'onglet "Candidats recrutés".
+- Annuler — retire le candidat de la shortlist.
+- Rapport — génère un rapport individuel exportable (PDF / Word) incluant le profil, les scores et les recommandations.
+
+Depuis l'onglet Candidats recrutés, vous pouvez renseigner pour chaque recruté sa date de prise de fonction et son type de contrat (CDI, CDD, Stage, Intérim, Freelance, Alternance).`,
+    },
+  ],
+},
   {
     id: "utilisateurs",
     label: "Utilisateurs",

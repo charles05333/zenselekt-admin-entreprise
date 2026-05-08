@@ -22,7 +22,6 @@ const MENUS_LABELS = {
   dashboard:              { label: "Dashboard",               icon: "bi-grid" },
   gestion_offres:         { label: "Offres d'emploi",         icon: "bi-briefcase" },
   gestion_utilisateurs:   { label: "Utilisateurs",            icon: "bi-people" },
-  gestion_messages:       { label: "Messages",                icon: "bi-chat" },
   gestion_evaluations:    { label: "Évaluations",             icon: "bi-trophy" },
   gestion_notations:      { label: "Présélection",            icon: "bi-clipboard-check" },
 };
@@ -33,7 +32,7 @@ const MOCK_USERS = [
     id: 1,
     email: "admin@zenselekt.com",
     role: "Administrateur",
-    permissions: ["dashboard", "gestion_offres", "gestion_utilisateurs", "gestion_messages", "gestion_evaluations", "gestion_notations"],
+    permissions: ["dashboard", "gestion_offres", "gestion_utilisateurs", "gestion_evaluations", "gestion_notations"],
     createdAt: "2025-01-10",
     status: "actif",
   },

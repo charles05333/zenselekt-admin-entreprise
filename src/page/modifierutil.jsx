@@ -46,12 +46,6 @@ const MENUS = [
     ],
   },
   {
-    key: "gestion_messages",
-    icon: "bi-chat",
-    label: "Gestion des messages reçus",
-    children: [],
-  },
-  {
     key: "gestion_evaluations",
     icon: "bi-trophy",
     label: "Gestion des évaluations",
@@ -77,7 +71,7 @@ const MOCK_USERS = [
     id: 1,
     email: "admin@zenselekt.com",
     role: "Administrateur",
-    permissions: ["dashboard", "gestion_offres", "emploi_consultation", "candidatheque", "gestion_utilisateurs", "utilisateurs_list", "gestion_messages", "gestion_evaluations", "gestion_notations"],
+    permissions: ["dashboard", "gestion_offres", "emploi_consultation", "candidatheque", "gestion_utilisateurs", "utilisateurs_list", "gestion_evaluations", "gestion_notations"],
     status: "actif",
   },
   {
