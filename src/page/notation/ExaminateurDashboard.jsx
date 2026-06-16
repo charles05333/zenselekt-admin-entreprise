@@ -14,7 +14,7 @@ const ExaminateurDashboard = ({ evaluation, onSelectExaminateur }) => {
   return (
     <div className="examinateur-dashboard" style={{ padding: '16px', minWidth: '600px' }}>
       <div className="dashboard-header">
-        <h4>👥 Examinateurs ({examinateurs.length})</h4>
+        <h4>Examinateurs ({examinateurs.length})</h4>
         <span className="dashboard-hint">Cliquez sur un examinateur pour le noter</span>
       </div>
 
@@ -38,10 +38,10 @@ const ExaminateurDashboard = ({ evaluation, onSelectExaminateur }) => {
                   <strong className="examinateur-name">{examinateur.nom}</strong>
                   <small>{examinateur.email}</small>
                   <span className={`role-badge role-${examinateur.role}`}>
-                    {examinateur.role === 'rh' && '👥 RH'}
-                    {examinateur.role === 'technique' && '💻 Technique'}
-                    {examinateur.role === 'manager' && '👔 Manager'}
-                    {examinateur.role === 'examinateur' && '📝 Examinateur'}
+                    {examinateur.role === 'rh' && 'RH'}
+                    {examinateur.role === 'technique' && 'Technique'}
+                    {examinateur.role === 'manager' && 'Manager'}
+                    {examinateur.role === 'examinateur' && 'Examinateur'}
                   </span>
                 </div>
                 <div className="examinateur-action-icon">
@@ -59,14 +59,14 @@ const ExaminateurDashboard = ({ evaluation, onSelectExaminateur }) => {
                       <div className="note-bar-fill" style={{ width: `${note.pourcentage}%` }} />
                     </div>
                     <div className={`decision-badge ${note.resultat === 'recrute' ? 'success' : 'danger'}`}>
-                      {note.resultat === 'recrute' ? '✅ Recommandé' : '❌ Non recommandé'}
+                      {note.resultat === 'recrute' ? 'Recommandé' : 'Non recommandé'}
                     </div>
                     {note.commentaire && (
                       <div className="commentaire-preview">
-                                        <small>📝 {note.commentaire.substring(0, 50)}...</small>
+                                        <small>{note.commentaire.substring(0, 50)}...</small>
                                       </div>
                                     )}
-                                    <div className="modifier-hint">✏️ Cliquez pour modifier</div>
+                                    <div className="modifier-hint">Cliquez pour modifier</div>
                                   </>
                                 ) : (
                                   <div className="pending-message">
@@ -100,7 +100,7 @@ const ExaminateurDashboard = ({ evaluation, onSelectExaminateur }) => {
                           </div>
                           {Object.keys(notesExaminateurs).length === examinateurs.length && (
                             <div className="summary-finale">
-                              🎉 Tous les examinateurs ont noté ! Décision finale disponible.
+                              Tous les examinateurs ont noté ! Décision finale disponible.
                             </div>
                           )}
                         </div>

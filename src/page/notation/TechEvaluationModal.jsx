@@ -19,7 +19,7 @@ const PERCENTAGES = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 const TechEvaluationModal = ({
   postulant, jobId, titreOffre, seuilPreselection,
   criteriaPoste, examinateursPoste,
-  onClose, onSave,
+  onClose, onSave, forceStep,
 }) => {
   const DEFAULT_CRITERIA = [
     { id: 1, title: "1. Evaluation générale du candidat",
@@ -40,15 +40,17 @@ const TechEvaluationModal = ({
   const grilleDuPoste = criteriaPoste && criteriaPoste.length > 0 ? criteriaPoste : null;
 
   // Détermination de l'étape initiale
-  const initialStep = grilleDuPoste
-    ? (examinateursPoste && examinateursPoste.length > 0 ? 'select_exam' : 'examinateurs')
-    : 'criteria';
+const initialStep = forceStep
+    ? forceStep
+    : grilleDuPoste
+      ? (examinateursPoste && examinateursPoste.length > 0 ? 'select_exam' : 'examinateurs')
+      : 'criteria';
 
-  const [step, setStep]                       = useState(initialStep);
-  const [criteria, setCriteria]               = useState(grilleDuPoste || DEFAULT_CRITERIA);
+  const [step, setStep]                           = useState(initialStep);
+  const [criteria, setCriteria]                   = useState(grilleDuPoste || DEFAULT_CRITERIA);
   const [newCriterionTitle, setNewCriterionTitle] = useState('');
-  const [seuilShortlist, setSeuilShortlist]   = useState(seuilPreselection || 80);
-  const [selectedExam, setSelectedExam]       = useState(null);
+  const [seuilShortlist, setSeuilShortlist]       = useState(seuilPreselection || 80);
+  const [selectedExam, setSelectedExam]           = useState(null);
 
   const showWarning = (msg) => Swal.fire({ title: 'Attention', text: msg, icon: 'warning', confirmButtonColor: '#f59e0b', allowOutsideClick: false });
   const showSuccess = (msg, timer = 1500) => Swal.fire({ title: 'Succès', text: msg, icon: 'success', timer, showConfirmButton: false, allowOutsideClick: false });
@@ -70,7 +72,7 @@ const TechEvaluationModal = ({
     setCriteria(prev => [...prev, { id: nextId, title: newCriterionTitle.trim(), questions: [] }]);
     setNewCriterionTitle(''); showSuccess('Nouveau critère ajouté');
   };
-  const addQuestion = (cId) => setCriteria(prev => prev.map(c => c.id === cId ? { ...c, questions: [...c.questions, ''] } : c));
+  const addQuestion    = (cId) => setCriteria(prev => prev.map(c => c.id === cId ? { ...c, questions: [...c.questions, ''] } : c));
   const updateQuestion = (cId, qIdx, v) => setCriteria(prev => prev.map(c =>
     c.id === cId ? { ...c, questions: c.questions.map((q, i) => i === qIdx ? v : q) } : c));
   const removeQuestion = async (cId, qIdx, txt) => {
@@ -80,8 +82,8 @@ const TechEvaluationModal = ({
   };
 
   const totalQuestions = criteria.reduce((acc, c) => acc + c.questions.length, 0);
-  const totalMax = totalQuestions * 5;
-  const seuilPoints = Math.round(totalMax * (seuilShortlist / 100));
+  const totalMax       = totalQuestions * 5;
+  const seuilPoints    = Math.round(totalMax * (seuilShortlist / 100));
 
   const handleClose = async () => {
     if (step === 'criteria') {
@@ -89,6 +91,12 @@ const TechEvaluationModal = ({
     } else onClose();
   };
 
+  /* ─────────────────────────────────────────────────────────────────────────
+     VALIDATION GRILLE
+     On appelle directement onSave (→ handleGrillePosteConfirm dans le parent)
+     sans passer par l'étape examinateurs — le bouton "Création d'examinateurs"
+     du bandeau sert à ça.
+  ───────────────────────────────────────────────────────────────────────── */
   const handleCriteriaValidated = async () => {
     const criteriaVides = criteria.filter(c => c.questions.length === 0);
     if (criteria.length === 0) { showWarning('Ajoutez au moins un critère avant de continuer'); return; }
@@ -100,14 +108,21 @@ const TechEvaluationModal = ({
     let hasEmpty = false;
     criteria.forEach(c => c.questions.forEach(q => { if (!q.trim()) hasEmpty = true; }));
     if (hasEmpty) { showWarning('Veuillez remplir toutes les questions vides avant de continuer'); return; }
-    if (await showConfirm('Valider les critères',
+
+    if (await showConfirm(
+      'Valider les critères',
       `<div style="text-align:center">
         <p><strong>${criteria.length}</strong> critère(s) · <strong>${totalQuestions}</strong> question(s)</p>
         <p>Note maximale : <strong>${totalMax} pts</strong></p>
         <p style="color:#059669">Seuil Shortlist : <strong>${seuilPoints} pts (${seuilShortlist}%)</strong></p>
         <p style="margin-top:12px">Cette grille sera utilisée pour <strong>tous les candidats</strong> de ce poste.</p>
       </div>`,
-      'Continuer vers les examinateurs', 'Modifier les critères')) setStep('examinateurs');
+      'Valider la grille',   // ← plus de "Continuer vers les examinateurs"
+      'Modifier les critères'
+    )) {
+      // Sauvegarde directe — pas de redirection vers l'étape examinateurs
+      onSave({ criteria, examinateurs: examinateursPoste ?? [], totalQuestions, totalMax, seuilShortlist });
+    }
   };
 
   const handleExaminateursValidated = (examinateursList) => {
@@ -192,7 +207,7 @@ const TechEvaluationModal = ({
                 borderRadius: 8, padding: '9px 24px', fontSize: 13, fontWeight: 700,
                 cursor: selectedExam ? 'pointer' : 'not-allowed',
                 boxShadow: selectedExam ? '0 2px 8px rgba(26,26,110,0.25)' : 'none', transition: 'all .2s' }}>
-              ✍️ Noter ce candidat
+              Noter ce candidat
             </button>
           </div>
         </div>

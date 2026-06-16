@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useSessionGuard } from "./component/useSessionGuard";
 import "./css/modifierUtilisateur.css";
 import Header from "./component/Header";
 import Navbar from "./component/Navbar";
 
-// ── Bootstrap Icons ───────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════
+   BOOTSTRAP ICONS
+═══════════════════════════════════════════════════════════════ */
 const BI_CDN = "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css";
 function useBootstrapIcons() {
   useEffect(() => {
@@ -17,13 +20,32 @@ function useBootstrapIcons() {
   }, []);
 }
 
-// ── Menus disponibles ─────────────────────────────────────
-const MENUS = [
+/* ═══════════════════════════════════════════════════════════════
+   API
+═══════════════════════════════════════════════════════════════ */
+const API_BASE = "/securebackoffice/backsecurebackoffice/creerUtil.php";
+
+async function apiFetch(path, options = {}) {
+  return fetch(`${API_BASE}${path}`, {
+    ...options,
+    credentials: "include",
+    headers: {
+      "X-Requested-With": "XMLHttpRequest",
+      ...(options.headers ?? {}),
+    },
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CATALOGUE DES MENUS
+═══════════════════════════════════════════════════════════════ */
+const ALL_MENUS = [
   {
     key: "dashboard",
     icon: "bi-grid",
     label: "Zenselekt 3.0 (Dashboard)",
     children: [],
+    alwaysOn: true,
   },
   {
     key: "gestion_offres",
@@ -59,33 +81,68 @@ const MENUS = [
     key: "gestion_notations",
     icon: "bi-clipboard-check",
     label: "Présélection & entretiens",
-    children: [
-      { key: "listes_postes", label: "Listes des postes" },
-    ],
+    children: [{ key: "listes_postes", label: "Listes des postes" }],
+  },
+  {
+    key: "documentation",
+    icon: "bi-journal-text",
+    label: "Documentation",
+    children: [],
   },
 ];
 
-// ── Mock données ──────────────────────────────────────────
-const MOCK_USERS = [
-  {
-    id: 1,
-    email: "admin@zenselekt.com",
-    role: "Administrateur",
-    permissions: ["dashboard", "gestion_offres", "emploi_consultation", "candidatheque", "gestion_utilisateurs", "utilisateurs_list", "gestion_evaluations", "gestion_notations"],
-    status: "actif",
-  },
-  {
-    id: 2,
-    email: "rh.manager@entreprise.com",
-    role: "Responsable RH",
-    permissions: ["dashboard", "gestion_offres", "emploi_consultation", "gestion_evaluations"],
-    status: "actif",
-  },
-];
+/* ═══════════════════════════════════════════════════════════════
+   HELPERS PERMISSIONS
+═══════════════════════════════════════════════════════════════ */
+const PERM_TO_MENU_KEY = {
+  offres:        "gestion_offres",
+  utilisateurs:  "gestion_utilisateurs",
+  evaluations:   "gestion_evaluations",
+  preselection:  "gestion_notations",
+  documentation: "documentation",
+};
+const CHILD_PERM_TO_MENU_KEY = {
+  emploi:        "emploi_consultation",
+  candidatheque: "candidatheque",
+  spontanees:    "candidathequeSpon",
+  annonces:      "gestion_annonces",
+  "liste-util":  "utilisateurs_list",
+  "creer-util":  "utilisateurs_creation",
+  tests:         "banque_tests",
+  campagnes:     "campagnes_evaluation",
+  postes:        "listes_postes",
+};
 
-// ── Password strength ─────────────────────────────────────
+function buildAllowedMenuKeys(permissions) {
+  const allowed = new Set(["dashboard"]);
+  if (!Array.isArray(permissions)) return allowed;
+  for (const perm of permissions) {
+    if (!perm.enabled) continue;
+    const mk = PERM_TO_MENU_KEY[perm.id];
+    if (mk) allowed.add(mk);
+    for (const child of perm.children ?? []) {
+      if (!child.enabled) continue;
+      const ck = CHILD_PERM_TO_MENU_KEY[child.id];
+      if (ck) allowed.add(ck);
+    }
+  }
+  return allowed;
+}
+
+function filterMenusForEntreprise(allowedKeys) {
+  return ALL_MENUS.reduce((acc, menu) => {
+    if (!allowedKeys.has(menu.key)) return acc;
+    const filteredChildren = menu.children.filter((c) => allowedKeys.has(c.key));
+    acc.push({ ...menu, children: filteredChildren });
+    return acc;
+  }, []);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PASSWORD STRENGTH
+═══════════════════════════════════════════════════════════════ */
 function getStrength(v) {
-  if (!v) return { score: 0, label: "Laisser vide pour ne pas changer", color: "var(--text-muted)" };
+  if (!v) return { score: 0, label: "Laisser vide pour conserver l'actuel", color: "var(--text-muted)" };
   let score = 0;
   if (v.length >= 7)  score++;
   if (v.length >= 10) score++;
@@ -95,13 +152,15 @@ function getStrength(v) {
     { label: "Trop court",  color: "#e74c3c" },
     { label: "Faible",      color: "#e74c3c" },
     { label: "Moyen",       color: "#f39c12" },
-    { label: "Fort",        color: "var(--green)" },
-    { label: "Très fort",   color: "var(--green)" },
+    { label: "Fort",        color: "#2ecc71" },
+    { label: "Très fort",   color: "#2ecc71" },
   ];
   return { score, ...map[score] };
 }
 
-// ── Section title ─────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════
+   SECTION TITLE
+═══════════════════════════════════════════════════════════════ */
 function SectionTitle({ children }) {
   return (
     <div className="mu-section-title">
@@ -111,54 +170,88 @@ function SectionTitle({ children }) {
   );
 }
 
-// ── Permissions ───────────────────────────────────────────
-function PermissionsEditor({ selected, onChange }) {
-  const toggleKey = useCallback((key, parentKey) => {
-    const isParent = !parentKey;
-    if (isParent) {
-      const menu = MENUS.find((m) => m.key === key);
-      const childKeys = menu?.children.map((c) => c.key) || [];
-      if (selected.includes(key)) {
-        onChange(selected.filter((k) => k !== key && !childKeys.includes(k)));
+/* ═══════════════════════════════════════════════════════════════
+   PERMISSIONS EDITOR
+═══════════════════════════════════════════════════════════════ */
+function PermissionsEditor({ selected, onChange, availableMenus }) {
+  const toggleKey = useCallback(
+    (key, parentKey) => {
+      const isParent = !parentKey;
+      if (isParent) {
+        const menu = availableMenus.find((m) => m.key === key);
+        const childKeys = menu?.children.map((c) => c.key) ?? [];
+        if (selected.includes(key)) {
+          if (menu?.alwaysOn) return;
+          onChange(selected.filter((k) => k !== key && !childKeys.includes(k)));
+        } else {
+          onChange([...selected, key, ...childKeys]);
+        }
       } else {
-        onChange([...selected, key, ...childKeys]);
+        if (selected.includes(key)) {
+          onChange(selected.filter((k) => k !== key));
+        } else {
+          onChange([...selected, key]);
+        }
       }
-    } else {
-      if (selected.includes(key)) {
-        onChange(selected.filter((k) => k !== key));
-      } else {
-        onChange([...selected, key]);
-      }
-    }
-  }, [selected, onChange]);
+    },
+    [selected, onChange, availableMenus]
+  );
 
-  const toggleAll = () => {
-    if (selected.length > 0) onChange([]);
-    else onChange(MENUS.flatMap((m) => [m.key, ...m.children.map((c) => c.key)]));
-  };
+  const selectableMenus = availableMenus.filter((m) => !m.alwaysOn);
+
+  function toggleAll() {
+    const allKeys = availableMenus.flatMap((m) => [m.key, ...m.children.map((c) => c.key)]);
+    const selectableKeys = selectableMenus.flatMap((m) => [m.key, ...m.children.map((c) => c.key)]);
+    const alreadyAllOn = selectableKeys.every((k) => selected.includes(k));
+    if (alreadyAllOn) {
+      const alwaysOnKeys = availableMenus
+        .filter((m) => m.alwaysOn)
+        .flatMap((m) => [m.key, ...m.children.map((c) => c.key)]);
+      onChange(alwaysOnKeys);
+    } else {
+      onChange(allKeys);
+    }
+  }
+
+  const allOn =
+    selectableMenus.length > 0 &&
+    selectableMenus.every(
+      (m) =>
+        selected.includes(m.key) &&
+        m.children.every((c) => selected.includes(c.key))
+    );
 
   return (
     <div className="mu-perms-wrap">
       <div className="mu-perms-header">
         <SectionTitle>Permissions des menus</SectionTitle>
         <button className="mu-select-all" onClick={toggleAll} type="button">
-          {selected.length > 0 ? "Tout décocher" : "Tout cocher"}
+          {allOn ? "Tout décocher" : "Tout cocher"}
         </button>
       </div>
 
       <div className="mu-perm-grid">
-        {MENUS.map((menu) => {
+        {availableMenus.map((menu) => {
           const parentChecked = selected.includes(menu.key);
           return (
-            <div key={menu.key} className={`mu-perm-item ${parentChecked ? "mu-perm-item--active" : ""}`}>
+            <div
+              key={menu.key}
+              className={`mu-perm-item ${parentChecked ? "mu-perm-item--active" : ""} ${menu.alwaysOn ? "mu-perm-item--locked" : ""}`}
+            >
               <label className="mu-perm-parent">
                 <input
                   type="checkbox"
                   checked={parentChecked}
                   onChange={() => toggleKey(menu.key)}
+                  disabled={menu.alwaysOn}
                 />
                 <i className={`bi ${menu.icon} mu-perm-icon`} />
                 <span className="mu-perm-label">{menu.label}</span>
+                {menu.alwaysOn && (
+                  <span className="mu-perm-locked-badge">
+                    <i className="bi bi-lock-fill" /> Toujours actif
+                  </span>
+                )}
               </label>
               {menu.children.length > 0 && parentChecked && (
                 <div className="mu-perm-children">
@@ -182,19 +275,39 @@ function PermissionsEditor({ selected, onChange }) {
   );
 }
 
-// ── Page principale ───────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════════════════════ */
+function Toast({ message, type, onClose }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 4000);
+    return () => clearTimeout(t);
+  }, [onClose]);
+  return (
+    <div className={`mu-toast mu-toast--${type}`}>
+      <i className={`bi ${type === "success" ? "bi-check-circle" : "bi-x-circle"}`} />
+      <span>{message}</span>
+      <button onClick={onClose} type="button"><i className="bi bi-x" /></button>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PAGE PRINCIPALE
+═══════════════════════════════════════════════════════════════ */
 export default function ModifierUtilisateur() {
   useBootstrapIcons();
   const navigate = useNavigate();
   const { id }   = useParams();
+  const { entreprise, checking } = useSessionGuard();
 
-  // ── Layout ────────────────────────────────────────────────
+  /* ── Layout ── */
   const [width, setWidth] = useState(0);
   useEffect(() => {
     setWidth(window.innerWidth);
-    const handler = () => setWidth(window.innerWidth);
-    window.addEventListener("resize", handler);
-    return () => window.removeEventListener("resize", handler);
+    const h = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
   }, []);
   const isMobile = width > 0 && width <= 600;
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -202,68 +315,144 @@ export default function ModifierUtilisateur() {
     if (width > 0) setSidebarOpen(width > 768);
   }, [width]);
 
-  // ── État ──────────────────────────────────────────────────
+  /* ── État formulaire ── */
   const [loading,  setLoading]  = useState(true);
   const [saving,   setSaving]   = useState(false);
   const [success,  setSuccess]  = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [errors,   setErrors]   = useState({});
+  const [toast,    setToast]    = useState(null);
 
   const [email,       setEmail]       = useState("");
   const [role,        setRole]        = useState("");
   const [mdp,         setMdp]         = useState("");
   const [mdp2,        setMdp2]        = useState("");
-  const [permissions, setPermissions] = useState([]);
+  const [permissions, setPermissions] = useState(["dashboard"]);
   const [showPass,    setShowPass]    = useState(false);
   const [showPass2,   setShowPass2]   = useState(false);
 
+  /* ── Menus disponibles filtrés selon l'entreprise ── */
+  const availableMenus = (() => {
+    if (!entreprise) return ALL_MENUS; // fallback si session pas encore prête
+    const allowedKeys = buildAllowedMenuKeys(entreprise.permissions ?? []);
+    return filterMenusForEntreprise(allowedKeys);
+  })();
+
   const strength = getStrength(mdp);
 
-  // ── Chargement utilisateur ────────────────────────────────
+  /* ── Chargement utilisateur ── */
   useEffect(() => {
-    // 👉 Remplace par fetch(`/api/users/${id}`)
-    setTimeout(() => {
-      const user = MOCK_USERS.find((u) => u.id === parseInt(id));
-      if (!user) { setNotFound(true); setLoading(false); return; }
-      setEmail(user.email);
-      setRole(user.role || "");
-      setPermissions(user.permissions);
-      setLoading(false);
-    }, 500);
-  }, [id]);
+    if (checking || !id) return;
 
-  // ── Validation ────────────────────────────────────────────
+    setLoading(true);
+    apiFetch(`?action=get&id=${id}`)
+      .then(async (res) => {
+        if (res.status === 401) {
+          window.location.href = "/securebackoffice/";
+          return;
+        }
+        if (res.status === 404) {
+          setNotFound(true);
+          return;
+        }
+        const data = await res.json();
+        if (!data.success) {
+          setNotFound(true);
+          return;
+        }
+        const u = data.user;
+        setEmail(u.email || "");
+        setRole(u.role || "");
+        setPermissions(
+          Array.isArray(u.menu_permissions) && u.menu_permissions.length > 0
+            ? u.menu_permissions
+            : ["dashboard"]
+        );
+      })
+      .catch(() => setNotFound(true))
+      .finally(() => setLoading(false));
+  }, [id, checking]);
+
+  /* ── Validation ── */
   function validate() {
     const e = {};
-    if (!email) e.email = "L'email est requis.";
-    if (mdp && mdp.length < 7) e.mdp = "Minimum 7 caractères.";
+    if (!email.trim()) {
+      e.email = "L'email est requis.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      e.email = "Format email invalide.";
+    }
+    if (mdp && mdp.length < 7) e.mdp  = "Minimum 7 caractères.";
     if (mdp && mdp !== mdp2)   e.mdp2 = "Les mots de passe ne correspondent pas.";
-    if (permissions.filter((k) => MENUS.some((m) => m.key === k)).length === 0)
+    if (
+      permissions.filter((k) => availableMenus.some((m) => m.key === k)).length === 0
+    ) {
       e.perms = "Sélectionnez au moins un menu.";
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   }
 
-  // ── Sauvegarde ────────────────────────────────────────────
+  /* ── Sauvegarde ── */
   async function handleSave() {
     if (!validate()) return;
     setSaving(true);
-    // 👉 Remplace par :
-    // await fetch(`/api/users/${id}`, {
-    //   method: "PUT",
-    //   headers: { "Content-Type": "application/json" },
-    //   body: JSON.stringify({ email, role, mdp: mdp || undefined, permissions }),
-    // });
-    await new Promise((r) => setTimeout(r, 1000));
-    setSaving(false);
-    setSuccess(true);
+    try {
+      const body = {
+        email:            email.trim(),
+        role:             role.trim(),
+        menu_permissions: permissions,
+      };
+      if (mdp) body.mdp = mdp;
+
+      const res = await apiFetch(`?action=update&id=${id}`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify(body),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          window.location.href = "/securebackoffice/";
+          return;
+        }
+        if (res.status === 422 && data.errors) {
+          setErrors(data.errors);
+          setToast({ message: "Veuillez corriger les erreurs.", type: "error" });
+          return;
+        }
+        if (res.status === 409) {
+          setErrors({ email: "Cet email est déjà utilisé par un autre compte." });
+          setToast({ message: "Email déjà utilisé.", type: "error" });
+          return;
+        }
+        if (res.status === 404) {
+          setNotFound(true);
+          return;
+        }
+        throw new Error(data.message || "Erreur serveur.");
+      }
+
+      setSuccess(true);
+      setMdp("");
+      setMdp2("");
+      setToast({ message: "Modifications enregistrées !", type: "success" });
+    } catch (err) {
+      setToast({ message: err.message || "Erreur inattendue.", type: "error" });
+    } finally {
+      setSaving(false);
+    }
   }
 
-  // ── Écran succès ──────────────────────────────────────────
+  /* ── Render conditionnel ── */
+  if (checking) return null;
+
+  /* ── Écran succès ── */
   if (success) {
     return (
       <div className="app">
-        <Header sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen(p => !p)} isMobile={isMobile} />
+        <Header sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen((p) => !p)} isMobile={isMobile} />
         <div className="layout">
           <Navbar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
           <main className={`main-content ${sidebarOpen ? "main-content--shifted" : ""}`}>
@@ -272,46 +461,65 @@ export default function ModifierUtilisateur() {
               <h2>Modifications enregistrées !</h2>
               <p>Le compte <strong>{email}</strong> a été mis à jour avec succès.</p>
               <div className="mu-success-actions">
-                <button className="mu-btn mu-btn--ghost" onClick={() => navigate("/utilisateurs")} type="button">
+                <button
+                  className="mu-btn mu-btn--ghost"
+                  onClick={() => navigate("/utilisateurs")}
+                  type="button"
+                >
                   <i className="bi bi-list-ul" /> Retour à la liste
                 </button>
-                <button className="mu-btn mu-btn--primary" onClick={() => { setSuccess(false); setMdp(""); setMdp2(""); }} type="button">
+                <button
+                  className="mu-btn mu-btn--primary"
+                  onClick={() => setSuccess(false)}
+                  type="button"
+                >
                   <i className="bi bi-pencil" /> Continuer les modifications
                 </button>
               </div>
             </div>
           </main>
         </div>
+        <footer className={`app-footer ${sidebarOpen ? "app-footer--shifted" : ""}`}>
+          © 2025 Zenselekt · Propulsé par <strong>Empower talents &amp; careers</strong>. Tous droits réservés
+        </footer>
       </div>
     );
   }
 
-  // ── Utilisateur introuvable ───────────────────────────────
+  /* ── Utilisateur introuvable ── */
   if (notFound) {
     return (
       <div className="app">
-        <Header sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen(p => !p)} isMobile={isMobile} />
+        <Header sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen((p) => !p)} isMobile={isMobile} />
         <div className="layout">
           <Navbar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
           <main className={`main-content ${sidebarOpen ? "main-content--shifted" : ""}`}>
             <div className="mu-card mu-notfound">
               <i className="bi bi-person-x" />
-              <p>Utilisateur introuvable.</p>
-              <button className="mu-btn mu-btn--ghost" onClick={() => navigate("/utilisateurs")} type="button">
+              <p>Utilisateur introuvable ou accès non autorisé.</p>
+              <button
+                className="mu-btn mu-btn--ghost"
+                onClick={() => navigate("/utilisateurs")}
+                type="button"
+              >
                 ← Retour à la liste
               </button>
             </div>
           </main>
         </div>
+        <footer className={`app-footer ${sidebarOpen ? "app-footer--shifted" : ""}`}>
+          © 2025 Zenselekt · Propulsé par <strong>Empower talents &amp; careers</strong>. Tous droits réservés
+        </footer>
       </div>
     );
   }
 
+  /* ── Page principale ── */
   return (
     <div className="app">
       <Header
         sidebarOpen={sidebarOpen}
-        onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+        onToggleSidebar={() => setSidebarOpen((p) => !p)}
         isMobile={isMobile}
       />
 
@@ -320,19 +528,30 @@ export default function ModifierUtilisateur() {
 
         <main className={`main-content ${sidebarOpen ? "main-content--shifted" : ""}`}>
 
-          {/* ── Titre page avec fil d'Ariane cliquable ── */}
+          {/* ── Titre page ── */}
           <div className="page-title">
-            <h1>Modifier un utilisateur</h1>
-            <p className="page-sub">
-              <button
-                className="page-sub-link"
-                onClick={() => navigate("/utilisateurs")}
-                type="button"
-              >
-                Gestion des utilisateurs
-              </button>
-              {" "}›{" "}Modifier
-            </p>
+            <div>
+              <div className="breadcrumb">
+                <button
+                  className="breadcrumb-link"
+                  onClick={() => navigate("/utilisateurs")}
+                  type="button"
+                >
+                  Utilisateurs
+                </button>
+                <i className="bi bi-chevron-right" />
+                <span className="breadcrumb-active">Modifier</span>
+              </div>
+              <h1>Modifier un utilisateur</h1>
+              <p className="page-sub">Mettez à jour les accès et les identifiants</p>
+            </div>
+            <button
+              className="mu-btn mu-btn--ghost"
+              onClick={() => navigate("/utilisateurs")}
+              type="button"
+            >
+              <i className="bi bi-arrow-left" /> Retour
+            </button>
           </div>
 
           {loading ? (
@@ -347,19 +566,30 @@ export default function ModifierUtilisateur() {
               <SectionTitle>Identifiants de connexion</SectionTitle>
               <div className="mu-form-grid">
 
+                {/* Email */}
                 <div className={`mu-field ${errors.email ? "mu-field--error" : ""}`}>
-                  <label>Email / Utilisateur</label>
+                  <label>
+                    Email / Utilisateur <span className="mu-req">*</span>
+                  </label>
                   <input
                     type="email"
                     value={email}
-                    onChange={(e) => { setEmail(e.target.value); setErrors(p => ({ ...p, email: undefined })); }}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setErrors((p) => ({ ...p, email: undefined }));
+                    }}
                     autoComplete="off"
                   />
-                  {errors.email && <span className="mu-field-error"><i className="bi bi-exclamation-circle" /> {errors.email}</span>}
+                  {errors.email && (
+                    <span className="mu-field-error">
+                      <i className="bi bi-exclamation-circle" /> {errors.email}
+                    </span>
+                  )}
                 </div>
 
+                {/* Rôle */}
                 <div className="mu-field">
-                  <label>Rôle (optionnel)</label>
+                  <label>Rôle <span className="mu-label-opt">(optionnel)</span></label>
                   <input
                     type="text"
                     placeholder="ex. Responsable RH"
@@ -368,35 +598,55 @@ export default function ModifierUtilisateur() {
                   />
                 </div>
 
+                {/* Nouveau mot de passe */}
                 <div className={`mu-field ${errors.mdp ? "mu-field--error" : ""}`}>
-                  <label>Nouveau mot de passe <span className="mu-label-opt">(laisser vide pour conserver)</span></label>
+                  <label>
+                    Nouveau mot de passe{" "}
+                    <span className="mu-label-opt">(laisser vide pour conserver)</span>
+                  </label>
                   <div className="mu-pass-wrap">
                     <input
                       type={showPass ? "text" : "password"}
                       placeholder="Minimum 7 caractères"
                       value={mdp}
-                      onChange={(e) => { setMdp(e.target.value); setErrors(p => ({ ...p, mdp: undefined })); }}
+                      onChange={(e) => {
+                        setMdp(e.target.value);
+                        setErrors((p) => ({ ...p, mdp: undefined }));
+                      }}
                       autoComplete="new-password"
                     />
-                    <button type="button" className="mu-pass-eye" onClick={() => setShowPass(p => !p)}>
+                    <button
+                      type="button"
+                      className="mu-pass-eye"
+                      onClick={() => setShowPass((p) => !p)}
+                    >
                       <i className={`bi ${showPass ? "bi-eye-slash" : "bi-eye"}`} />
                     </button>
                   </div>
+                  <span className="mu-strength-txt" style={{ color: strength.color }}>
+                    {strength.label}
+                  </span>
                   {mdp && (
-                    <>
-                      <div className="mu-strength-bar">
-                        {[0,1,2,3].map((i) => (
-                          <div key={i} className="mu-strength-seg"
-                            style={{ background: i < strength.score ? strength.color : "var(--bg-deep)" }} />
-                        ))}
-                      </div>
-                      <span className="mu-strength-txt" style={{ color: strength.color }}>{strength.label}</span>
-                    </>
+                    <div className="mu-strength-bar">
+                      {[0, 1, 2, 3].map((i) => (
+                        <div
+                          key={i}
+                          className="mu-strength-seg"
+                          style={{
+                            background: i < strength.score ? strength.color : "var(--bg-deep)",
+                          }}
+                        />
+                      ))}
+                    </div>
                   )}
-                  {!mdp && <span className="mu-strength-txt" style={{ color: "var(--text-muted)" }}>{strength.label}</span>}
-                  {errors.mdp && <span className="mu-field-error"><i className="bi bi-exclamation-circle" /> {errors.mdp}</span>}
+                  {errors.mdp && (
+                    <span className="mu-field-error">
+                      <i className="bi bi-exclamation-circle" /> {errors.mdp}
+                    </span>
+                  )}
                 </div>
 
+                {/* Confirmer mot de passe */}
                 <div className={`mu-field ${errors.mdp2 ? "mu-field--error" : ""}`}>
                   <label>Confirmer le nouveau mot de passe</label>
                   <div className="mu-pass-wrap">
@@ -404,14 +654,25 @@ export default function ModifierUtilisateur() {
                       type={showPass2 ? "text" : "password"}
                       placeholder="Répétez le mot de passe"
                       value={mdp2}
-                      onChange={(e) => { setMdp2(e.target.value); setErrors(p => ({ ...p, mdp2: undefined })); }}
+                      onChange={(e) => {
+                        setMdp2(e.target.value);
+                        setErrors((p) => ({ ...p, mdp2: undefined }));
+                      }}
                       autoComplete="new-password"
                     />
-                    <button type="button" className="mu-pass-eye" onClick={() => setShowPass2(p => !p)}>
+                    <button
+                      type="button"
+                      className="mu-pass-eye"
+                      onClick={() => setShowPass2((p) => !p)}
+                    >
                       <i className={`bi ${showPass2 ? "bi-eye-slash" : "bi-eye"}`} />
                     </button>
                   </div>
-                  {errors.mdp2 && <span className="mu-field-error"><i className="bi bi-exclamation-circle" /> {errors.mdp2}</span>}
+                  {errors.mdp2 && (
+                    <span className="mu-field-error">
+                      <i className="bi bi-exclamation-circle" /> {errors.mdp2}
+                    </span>
+                  )}
                 </div>
 
               </div>
@@ -424,7 +685,12 @@ export default function ModifierUtilisateur() {
                   <i className="bi bi-exclamation-circle" /> {errors.perms}
                 </div>
               )}
-              <PermissionsEditor selected={permissions} onChange={setPermissions} />
+
+              <PermissionsEditor
+                selected={permissions}
+                onChange={setPermissions}
+                availableMenus={availableMenus}
+              />
 
               {/* ── Actions ── */}
               <div className="mu-btn-row">
@@ -442,10 +708,11 @@ export default function ModifierUtilisateur() {
                   disabled={saving}
                   type="button"
                 >
-                  {saving
-                    ? <><span className="mu-spinner" /> Enregistrement…</>
-                    : <><i className="bi bi-check2" /> Enregistrer les modifications</>
-                  }
+                  {saving ? (
+                    <><span className="mu-spinner" /> Enregistrement…</>
+                  ) : (
+                    <><i className="bi bi-check2" /> Enregistrer les modifications</>
+                  )}
                 </button>
               </div>
 
@@ -455,8 +722,17 @@ export default function ModifierUtilisateur() {
         </main>
       </div>
 
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
       <footer className={`app-footer ${sidebarOpen ? "app-footer--shifted" : ""}`}>
-        © 2025 Zenselekt · Propulsé par <strong>Empower talents &amp; careers</strong>. Tous droits réservés
+        © 2025 Zenselekt · Propulsé par{" "}
+        <strong>Empower talents &amp; careers</strong>. Tous droits réservés
       </footer>
     </div>
   );

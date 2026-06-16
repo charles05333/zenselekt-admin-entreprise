@@ -149,7 +149,7 @@ const ExaminateurModal = ({ postulant, onClose, onSave }) => {
       <div className="examinateur-modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="examinateur-modal-header">
           <div>
-            <h3>👥 Sélectionnez les examinateurs</h3>
+            <h3>Sélectionnez les examinateurs</h3>
             <p className="text-muted">Chaque examinateur pourra noter le candidat indépendamment</p>
             {postulant && (
               <div className="candidat-info">

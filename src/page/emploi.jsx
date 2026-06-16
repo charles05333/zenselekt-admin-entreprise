@@ -1,82 +1,92 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import './css/emploi.css';
 import Header from "./component/Header";
 import Navbar from "./component/Navbar";
+import { useSessionGuard } from "./component/useSessionGuard";
 
-// ── Bootstrap Icons via CDN ──────────────────────────────
+/* ─────────────────────────────────────────────────────────
+   CONFIG
+───────────────────────────────────────────────────────── */
+const API_BASE  = "/securebackoffice/backsecurebackoffice/offres.php";
+const PAGE_SIZE = 20;
+const AUTH_REDIRECT = "/securebackoffice/";
+
+/* ─────────────────────────────────────────────────────────
+   BOOTSTRAP ICONS
+───────────────────────────────────────────────────────── */
 const BI_CDN = "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css";
 function useBootstrapIcons() {
   useEffect(() => {
     if (!document.querySelector(`link[href="${BI_CDN}"]`)) {
       const link = document.createElement("link");
-      link.rel = "stylesheet";
+      link.rel  = "stylesheet";
       link.href = BI_CDN;
       document.head.appendChild(link);
     }
   }, []);
 }
 
-// ── Pagination ────────────────────────────────────────────
-const PAGE_SIZE = 20;
+/* ─────────────────────────────────────────────────────────
+   SECURE FETCH
+───────────────────────────────────────────────────────── */
+async function secureFetch(url, options = {}) {
+  return fetch(url, {
+    ...options,
+    headers: {
+      "X-Requested-With": "XMLHttpRequest",
+      ...(options.headers ?? {}),
+    },
+    credentials: "include",
+    signal: options.signal ?? AbortSignal.timeout(20000),
+  });
+}
 
-// ── Mock data ─────────────────────────────────────────────
-const MOCK_OFFRES = [
-  {
-    id: 1,
-    titre: "Développeur Full Stack",
-    total_postulants: 12,
-    Date_pub: "2025-03-01",
-    Date_lim_can: "2025-04-30",
-    exp: "3ans",
-    genre: "Homme/Femme",
-    quali: "Licence",
-    Exper: "Confirmé(e)",
-    types_Off: "CDI",
-    statuts: "Approuvé",
-  },
-  {
-    id: 2,
-    titre: "Responsable RH",
-    total_postulants: 7,
-    Date_pub: "2025-03-15",
-    Date_lim_can: "2025-05-15",
-    exp: "5ans",
-    genre: "Homme/Femme",
-    quali: "Master",
-    Exper: "Expert(e)",
-    types_Off: "CDI",
-    statuts: "Approuvé",
-  },
-  {
-    id: 3,
-    titre: "Stagiaire Marketing Digital",
-    total_postulants: 24,
-    Date_pub: "2025-04-01",
-    Date_lim_can: "2025-05-01",
-    exp: "Aucune",
-    genre: "Homme/Femme",
-    quali: "BTS",
-    Exper: "Débutant(e)",
-    types_Off: "Stages",
-    statuts: "en attente",
-  },
-  {
-    id: 4,
-    titre: "Directeur Marketing Digital",
-    total_postulants: 24,
-    Date_pub: "2025-04-01",
-    Date_lim_can: "2025-05-01",
-    exp: "Aucune",
-    genre: "Homme/Femme",
-    quali: "BTS",
-    Exper: "Expert(e)",
-    types_Off: "CDI",
-    statuts: "en attente",
-  },
-];
+/* ─────────────────────────────────────────────────────────
+   HOOK — chargement des offres depuis l'API
+───────────────────────────────────────────────────────── */
+function useOffres() {
+  const [offres,  setOffres]  = useState([]);
+  const [total,   setTotal]   = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState(null);
 
-// ── Helpers ───────────────────────────────────────────────
+  const fetchOffres = useCallback(async (page = 1, search = "") => {
+    setLoading(true);
+    setError(null);
+    try {
+      const url = `${API_BASE}?action=list&page=${page}&limit=${PAGE_SIZE}&search=${encodeURIComponent(search)}`;
+      const res = await secureFetch(url);
+
+      if (res.status === 401) {
+        try {
+          const json = await res.json();
+          window.location.replace(json.redirect_to ?? AUTH_REDIRECT);
+        } catch {
+          window.location.replace(AUTH_REDIRECT);
+        }
+        return;
+      }
+
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || "Erreur API");
+
+      setOffres(json.data.offres ?? []);
+      setTotal(json.data.total  ?? 0);
+    } catch (err) {
+      setError(err.message || "Erreur inattendue.");
+      setOffres([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { offres, total, loading, error, fetchOffres };
+}
+
+/* ─────────────────────────────────────────────────────────
+   HELPERS
+───────────────────────────────────────────────────────── */
 const formatDate = (d) => {
   if (!d) return "";
   return new Date(d).toLocaleDateString("fr-FR", {
@@ -84,79 +94,58 @@ const formatDate = (d) => {
   });
 };
 
-// ── Statut Badge ──────────────────────────────────────────
+/* ─────────────────────────────────────────────────────────
+   STATUT BADGE
+───────────────────────────────────────────────────────── */
 function StatutBadge({ statut }) {
   const isOk = statut === "Approuvé";
   return (
     <span className={`offres-statut ${isOk ? "offres-statut--ok" : "offres-statut--wait"}`}>
+      <span className="offres-statut-dot" />
       {statut}
     </span>
   );
 }
 
-// ── Composant Pagination ──────────────────────────────────
+/* ─────────────────────────────────────────────────────────
+   PAGINATION
+───────────────────────────────────────────────────────── */
 function Pagination({ page, totalPages, onChange }) {
   if (totalPages <= 1) return null;
 
   const pages = [];
   const delta = 2;
   const range = [];
-  for (
-    let i = Math.max(2, page - delta);
-    i <= Math.min(totalPages - 1, page + delta);
-    i++
-  ) range.push(i);
+  for (let i = Math.max(2, page - delta); i <= Math.min(totalPages - 1, page + delta); i++) range.push(i);
 
   pages.push(
-    <button
-      key={1}
+    <button key={1}
       className={`offres-page-num${page === 1 ? " offres-page-num--active" : ""}`}
-      onClick={() => onChange(1)}
-    >1</button>
+      onClick={() => onChange(1)}>1</button>
   );
-
   if (range[0] > 2) pages.push(<span key="el1" className="offres-page-ellipsis">…</span>);
-
-  range.forEach((n) =>
-    pages.push(
-      <button
-        key={n}
-        className={`offres-page-num${page === n ? " offres-page-num--active" : ""}`}
-        onClick={() => onChange(n)}
-      >{n}</button>
-    )
+  range.forEach((n) => pages.push(
+    <button key={n}
+      className={`offres-page-num${page === n ? " offres-page-num--active" : ""}`}
+      onClick={() => onChange(n)}>{n}</button>
+  ));
+  if (range[range.length - 1] < totalPages - 1) pages.push(<span key="el2" className="offres-page-ellipsis">…</span>);
+  if (totalPages > 1) pages.push(
+    <button key={totalPages}
+      className={`offres-page-num${page === totalPages ? " offres-page-num--active" : ""}`}
+      onClick={() => onChange(totalPages)}>{totalPages}</button>
   );
-
-  if (range[range.length - 1] < totalPages - 1)
-    pages.push(<span key="el2" className="offres-page-ellipsis">…</span>);
-
-  if (totalPages > 1)
-    pages.push(
-      <button
-        key={totalPages}
-        className={`offres-page-num${page === totalPages ? " offres-page-num--active" : ""}`}
-        onClick={() => onChange(totalPages)}
-      >{totalPages}</button>
-    );
 
   return (
     <div className="offres-pagination">
-      <button
-        className="offres-page-btn"
-        onClick={() => onChange(Math.max(1, page - 1))}
-        disabled={page === 1}
-        aria-label="Page précédente"
-      >
+      <button className="offres-page-btn"
+        onClick={() => onChange(Math.max(1, page - 1))} disabled={page === 1}>
         <i className="bi bi-chevron-left" />
         <span className="offres-page-label">Précédent</span>
       </button>
       {pages}
-      <button
-        className="offres-page-btn"
-        onClick={() => onChange(Math.min(totalPages, page + 1))}
-        disabled={page === totalPages}
-        aria-label="Page suivante"
-      >
+      <button className="offres-page-btn"
+        onClick={() => onChange(Math.min(totalPages, page + 1))} disabled={page === totalPages}>
         <span className="offres-page-label">Suivant</span>
         <i className="bi bi-chevron-right" />
       </button>
@@ -164,16 +153,16 @@ function Pagination({ page, totalPages, onChange }) {
   );
 }
 
-// ── Carte Mobile ──────────────────────────────────────────
+/* ─────────────────────────────────────────────────────────
+   CARTE MOBILE
+───────────────────────────────────────────────────────── */
 function MobileCard({ o, onCopy, copied }) {
-  const navigate = useNavigate();
-  const offreUrl = `https://zenselekt.com/Talents/JobsID.php?id=${o.id}`;
+  const offreUrl = `https://app.zenselekt.com/jobs/${o.id}`;
   const liUrl    = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(offreUrl)}`;
   const waUrl    = `https://wa.me/?text=${encodeURIComponent("Découvrez cette offre : " + o.titre + " - " + offreUrl)}`;
 
   return (
     <div className="offres-mobile-card">
-      {/* En-tête */}
       <div className="offres-mobile-card__header">
         <div style={{ flex: 1 }}>
           <div className="offres-mobile-card__title">{o.titre}</div>
@@ -182,42 +171,26 @@ function MobileCard({ o, onCopy, copied }) {
             <span className="offres-type-chip">{o.types_Off}</span>
           </div>
         </div>
-        <span className="offres-postulants-badge" title="Postulants">
-          {o.total_postulants}
-        </span>
+        <span className="offres-postulants-badge" title="Postulants">{o.total_postulants ?? 0}</span>
       </div>
 
-      {/* Grille infos */}
       <div className="offres-mobile-card__grid">
-        <div className="offres-mobile-card__item">
-          <span className="offres-mobile-card__label">Date pub.</span>
-          <span className="offres-mobile-card__value">{formatDate(o.Date_pub)}</span>
-        </div>
-        <div className="offres-mobile-card__item">
-          <span className="offres-mobile-card__label">Date limite</span>
-          <span className="offres-mobile-card__value">{formatDate(o.Date_lim_can)}</span>
-        </div>
-        <div className="offres-mobile-card__item">
-          <span className="offres-mobile-card__label">Expérience</span>
-          <span className="offres-mobile-card__value">{o.exp}</span>
-        </div>
-        <div className="offres-mobile-card__item">
-          <span className="offres-mobile-card__label">Genre</span>
-          <span className="offres-mobile-card__value">{o.genre}</span>
-        </div>
-        <div className="offres-mobile-card__item">
-          <span className="offres-mobile-card__label">Qualification</span>
-          <span className="offres-mobile-card__value">{o.quali}</span>
-        </div>
-        <div className="offres-mobile-card__item">
-          <span className="offres-mobile-card__label">Expertise</span>
-          <span className="offres-mobile-card__value">{o.Exper}</span>
-        </div>
+        {[
+          ["Date pub.",     formatDate(o.Date_pub)],
+          ["Date limite",   formatDate(o.Date_lim_can)],
+          ["Expérience",    o.exp],
+          ["Genre",         o.genre],
+          ["Qualification", o.quali],
+          ["Expertise",     o.Exper],
+        ].map(([l, v]) => (
+          <div key={l} className="offres-mobile-card__item">
+            <span className="offres-mobile-card__label">{l}</span>
+            <span className="offres-mobile-card__value">{v}</span>
+          </div>
+        ))}
       </div>
 
-      {/* Footer */}
       <div className="offres-mobile-card__footer">
-        {/* Partage */}
         <div className="offres-share">
           <a href={liUrl} target="_blank" rel="noreferrer" className="linkedin" title="LinkedIn">
             <i className="bi bi-linkedin" />
@@ -227,77 +200,97 @@ function MobileCard({ o, onCopy, copied }) {
           </a>
           <button
             className={`offres-copy-btn ${copied === o.id ? "copied" : ""}`}
-            onClick={() => onCopy(o.id)}
-            title="Copier le lien"
-          >
+            onClick={() => onCopy(o.id)} title="Copier le lien">
             <i className={`bi ${copied === o.id ? "bi-check2" : "bi-link-45deg"}`} />
           </button>
         </div>
-
-        {/* Voir postulants — FIX : useNavigate au lieu de <a href> */}
-        <Link 
-  to={`/postulants?event_id=${o.id}&poste=${encodeURIComponent(o.titre)}`}
-   className="offres-mobile-card__voir"
->
-  <i className="bi bi-person-lines-fill" />
-</Link>
-
-       
+        <Link
+          to={`/postulants?event_id=${o.id}&poste=${encodeURIComponent(o.titre)}`}
+          className="offres-mobile-card__voir">
+          <i className="bi bi-person-lines-fill" />
+        </Link>
       </div>
     </div>
   );
 }
 
-// ── Page Emploi ───────────────────────────────────────────
-export default function Offres() {
+/* ═══════════════════════════════════════════════════════════
+   PAGE PRINCIPALE
+═══════════════════════════════════════════════════════════ */
+export default function Emploi() {
   useBootstrapIcons();
-  const navigate = useNavigate();
 
+  /* ── Session guard ── */
+  const { entreprise, checked } = useSessionGuard();
+
+  /* ── Responsive ── */
   const [width, setWidth] = useState(window.innerWidth);
   useEffect(() => {
-    const handler = () => setWidth(window.innerWidth);
-    window.addEventListener("resize", handler);
-    return () => window.removeEventListener("resize", handler);
+    const h = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
   }, []);
 
-  const isMobile = width <= 600;
+  const isMobile = width <= 768;
   const [sidebarOpen, setSidebarOpen] = useState(width > 768);
-  useEffect(() => {
-    if (width <= 768) setSidebarOpen(false);
-  }, [width]);
+  useEffect(() => { if (width <= 768) setSidebarOpen(false); }, [width]);
 
-  const [offres] = useState(MOCK_OFFRES);
+  /* ── Data ── */
+  const { offres, total, loading, error, fetchOffres } = useOffres();
   const [search, setSearch] = useState("");
   const [copied, setCopied] = useState(null);
-  const [page, setPage]     = useState(1);
+  const [page,   setPage]   = useState(1);
+  const tableRef = useRef(null);
+
+  useEffect(() => {
+    fetchOffres(page, search);
+  }, [page, search, fetchOffres]);
 
   useEffect(() => { setPage(1); }, [search]);
 
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  function handlePageChange(newPage) {
+    setPage(newPage);
+    tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   function handleCopy(id) {
-    const url = `https://zenselekt.com/Talents/JobsID.php?id=${id}`;
-    navigator.clipboard.writeText(url).then(() => {
+    navigator.clipboard.writeText(`https://app.zenselekt.com/jobs/${id}`).then(() => {
       setCopied(id);
       setTimeout(() => setCopied(null), 2000);
     });
   }
 
-  const filtered   = offres.filter((o) =>
-    o.titre.toLowerCase().includes(search.toLowerCase())
-  );
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const skeletonRows = Array.from({ length: 5 }, (_, i) => i);
 
-  const tableRef = useRef(null);
-  function handlePageChange(newPage) {
-    setPage(newPage);
-    if (tableRef.current) tableRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+  /* ── Session guard : spinner pendant vérification ── */
+  if (!checked) {
+    return (
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "center",
+        height: "100vh", background: "#f4f6fa",
+        flexDirection: "column", gap: 16,
+      }}>
+        <div style={{
+          width: 40, height: 40,
+          border: "3px solid #e2e8f0",
+          borderTop: "3px solid #1a7070",
+          borderRadius: "50%",
+          animation: "zen-spin 0.8s linear infinite",
+        }} />
+        <style>{`@keyframes zen-spin { to { transform: rotate(360deg); } }`}</style>
+        <span style={{ color: "#93a4c3", fontSize: 14 }}>Vérification en cours…</span>
+      </div>
+    );
   }
 
+  /* ── Rendu principal ── */
   return (
     <div className="app">
       <Header
         sidebarOpen={sidebarOpen}
-        onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+        onToggleSidebar={() => setSidebarOpen((p) => !p)}
         isMobile={isMobile}
       />
 
@@ -308,10 +301,25 @@ export default function Offres() {
           <div className="offres-page">
 
             <div className="offres-breadcrumb">
-              <h1>Gestion des Offres</h1>
-              {/* FIX : <Link> au lieu de <a href> pour la navigation interne */}
-              <p><Link to="/acceuil">Bienvenue solibra</Link>{" / "}Gestion des annonces</p>
+              <div className="offres-breadcrumb-top">
+                <h1>Gestion des Offres</h1>
+                <div className="offres-count-pill">
+                  <span>{total}</span> offre{total !== 1 ? "s" : ""}
+                </div>
+              </div>
+              <p>
+                <Link to="/acceuil">Accueil</Link>{" / "}Gestion des annonces
+              </p>
             </div>
+
+            {/* Erreur API */}
+            {error && !loading && (
+              <div className="offres-api-error">
+                <i className="bi bi-exclamation-triangle-fill" />
+                <span>{error}</span>
+                <button onClick={() => fetchOffres(page, search)}>Réessayer</button>
+              </div>
+            )}
 
             <div className="offres-card" ref={tableRef}>
 
@@ -331,7 +339,7 @@ export default function Offres() {
                 </div>
               </div>
 
-              {/* ── TABLE desktop ── */}
+              {/* ── TABLE DESKTOP ── */}
               <div className="offres-table-wrap">
                 <table className="offres-table">
                   <thead>
@@ -351,7 +359,15 @@ export default function Offres() {
                     </tr>
                   </thead>
                   <tbody>
-                    {paginated.length === 0 && (
+                    {loading ? (
+                      skeletonRows.map((i) => (
+                        <tr key={i} className="offres-skeleton-row">
+                          {Array.from({ length: 12 }).map((_, j) => (
+                            <td key={j}><div className="offres-skeleton-cell" /></td>
+                          ))}
+                        </tr>
+                      ))
+                    ) : offres.length === 0 ? (
                       <tr>
                         <td colSpan={12}>
                           <div className="offres-empty">
@@ -361,89 +377,85 @@ export default function Offres() {
                           </div>
                         </td>
                       </tr>
+                    ) : (
+                      offres.map((o, idx) => {
+                        const offreUrl = `https://zenselekt.com/Talents/JobsID.php?id=${o.id}`;
+                        const liUrl    = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(offreUrl)}`;
+                        const waUrl    = `https://wa.me/?text=${encodeURIComponent("Découvrez cette offre : " + o.titre + " - " + offreUrl)}`;
+                        return (
+                          <tr key={o.id} style={{ animationDelay: `${idx * 40}ms` }}>
+                            <td className="offres-td-titre">{o.titre}</td>
+                            <td style={{ textAlign: "center" }}>
+                              <span className="offres-postulants-badge">{o.total_postulants ?? 0}</span>
+                            </td>
+                            <td>
+                              <div className="offres-share">
+                                <a href={liUrl} target="_blank" rel="noreferrer" className="linkedin" title="LinkedIn">
+                                  <i className="bi bi-linkedin" />
+                                </a>
+                                <a href={waUrl} target="_blank" rel="noreferrer" className="whatsapp" title="WhatsApp">
+                                  <i className="bi bi-whatsapp" />
+                                </a>
+                                <button
+                                  className={`offres-copy-btn ${copied === o.id ? "copied" : ""}`}
+                                  onClick={() => handleCopy(o.id)} title="Copier le lien">
+                                  <i className={`bi ${copied === o.id ? "bi-check2" : "bi-link-45deg"}`} />
+                                </button>
+                              </div>
+                            </td>
+                            <td className="offres-td-muted">{formatDate(o.Date_pub)}</td>
+                            <td className="offres-td-muted">{formatDate(o.Date_lim_can)}</td>
+                            <td className="offres-td-muted">{o.exp}</td>
+                            <td className="offres-td-muted">{o.genre}</td>
+                            <td className="offres-td-muted">{o.quali}</td>
+                            <td className="offres-td-muted">{o.Exper}</td>
+                            <td><StatutBadge statut={o.statuts} /></td>
+                            <td><span className="offres-type-chip">{o.types_Off}</span></td>
+                            <td>
+                              <div className="offres-actions">
+                                <Link
+                                  to={`/postulants?event_id=${o.id}&poste=${encodeURIComponent(o.titre)}`}
+                                  className="offres-action-btn"
+                                  title="Voir les postulants">
+                                  <i className="bi bi-person-lines-fill" />
+                                </Link>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
-                    {paginated.map((o) => {
-                      const offreUrl = `https://zenselekt.com/Talents/JobsID.php?id=${o.id}`;
-                      const liUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(offreUrl)}`;
-                      const waUrl = `https://wa.me/?text=${encodeURIComponent("Découvrez cette offre : " + o.titre + " - " + offreUrl)}`;
-                      return (
-                        <tr key={o.id}>
-                          <td className="offres-td-titre">{o.titre}</td>
-                          <td style={{ textAlign: "center" }}>
-                            <span className="offres-postulants-badge">{o.total_postulants}</span>
-                          </td>
-                          <td>
-                            <div className="offres-share">
-                              <a href={liUrl} target="_blank" rel="noreferrer" className="linkedin" title="LinkedIn">
-                                <i className="bi bi-linkedin" />
-                              </a>
-                              <a href={waUrl} target="_blank" rel="noreferrer" className="whatsapp" title="WhatsApp">
-                                <i className="bi bi-whatsapp" />
-                              </a>
-                              <button
-                                className={`offres-copy-btn ${copied === o.id ? "copied" : ""}`}
-                                onClick={() => handleCopy(o.id)}
-                                title="Copier le lien"
-                              >
-                                <i className={`bi ${copied === o.id ? "bi-check2" : "bi-link-45deg"}`} />
-                              </button>
-                            </div>
-                          </td>
-                          <td className="offres-td-muted">{formatDate(o.Date_pub)}</td>
-                          <td className="offres-td-muted">{formatDate(o.Date_lim_can)}</td>
-                          <td className="offres-td-muted">{o.exp}</td>
-                          <td className="offres-td-muted">{o.genre}</td>
-                          <td className="offres-td-muted">{o.quali}</td>
-                          <td className="offres-td-muted">{o.Exper}</td>
-                          <td><StatutBadge statut={o.statuts} /></td>
-                          <td className="offres-td-muted">{o.types_Off}</td>
-                          <td>
-                            <div className="offres-actions">
-                              {/* FIX : navigate() au lieu de <a href> pour la navigation interne */}
-                              <button
-                                className="offres-voir-btn"
-                                onClick={() => navigate(`/postulants?event_id=${o.id}&poste=${encodeURIComponent(o.titre)}`)}
-                                title="Voir les postulants"
-                              >
-                                <i className="bi bi-person-lines-fill" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
                   </tbody>
                 </table>
               </div>
 
-              {/* ── CARTES mobile ── */}
+              {/* ── CARTES MOBILE ── */}
               <div className="offres-cards-mobile">
-                {paginated.length === 0 ? (
+                {loading ? (
+                  skeletonRows.map((i) => <div key={i} className="offres-mobile-skeleton" />)
+                ) : offres.length === 0 ? (
                   <div className="offres-empty">
                     <div className="offres-empty-icon"><i className="bi bi-inbox" /></div>
                     <p>Aucune offre trouvée.</p>
                     {search && <span>Essayez un terme de recherche différent.</span>}
                   </div>
                 ) : (
-                  paginated.map((o) => (
-                    <MobileCard
-                      key={o.id}
-                      o={o}
-                      onCopy={handleCopy}
-                      copied={copied}
-                    />
+                  offres.map((o) => (
+                    <MobileCard key={o.id} o={o} onCopy={handleCopy} copied={copied} />
                   ))
                 )}
               </div>
 
               <div className="offres-table-footer">
                 <span className="offres-footer-info">
-                  Affichage de l'élément{" "}
-                  <strong>{filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}</strong>
-                  {" "}à{" "}
-                  <strong>{Math.min(page * PAGE_SIZE, filtered.length)}</strong>
-                  {" "}sur <strong>{filtered.length}</strong> élément{filtered.length !== 1 ? "s" : ""}
-                  {search && <span className="offres-footer-search"> — « {search} »</span>}
+                  {!loading && (
+                    <>
+                      Affichage de <strong>{total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}</strong> à{" "}
+                      <strong>{Math.min(page * PAGE_SIZE, total)}</strong> sur{" "}
+                      <strong>{total}</strong> offre{total !== 1 ? "s" : ""}
+                      {search && <span className="offres-footer-search"> — « {search} »</span>}
+                    </>
+                  )}
                 </span>
                 <Pagination page={page} totalPages={totalPages} onChange={handlePageChange} />
               </div>

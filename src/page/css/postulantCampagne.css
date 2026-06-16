@@ -26,9 +26,7 @@
   --radius-lg: 16px;
 }
 
-
-
-/* Layout - CORRIGÉ pour éviter les débordements */
+/* Layout */
 * {
   box-sizing: border-box;
 }
@@ -49,12 +47,12 @@
 .postulant-main {
   flex: 1;
   padding: 24px 32px;
+  padding-top: 90px;
   transition: all 0.3s ease;
   width: calc(100% - 280px);
   max-width: 100%;
   overflow-x: auto;
 }
-
 .postulant-main--shifted {
   margin-left: 280px;
   width: calc(100% - 280px);
@@ -108,14 +106,19 @@
 .postulant-title {
   font-size: 22px !important;
   font-weight: 700;
-  background: linear-gradient(135deg, var(--gray-800) 0%, var(--gray-600) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--gray-800);
+  background: none;
   display: flex;
   align-items: center;
   gap: 12px;
   margin: 0;
+}
+
+.postulant-title > span {
+  background: linear-gradient(135deg, var(--gray-800) 0%, var(--gray-600) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .postulant-title i {
@@ -171,7 +174,7 @@
   font-size: 18px;
 }
 
-/* Filtres Grid - Responsive sans coupure */
+/* Filtres Grid */
 .postulant-filters-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -295,7 +298,7 @@
   border-color: var(--gray-300);
 }
 
-/* Tests grid - Responsive */
+/* Tests grid */
 .postulant-tests-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -369,7 +372,7 @@
   flex-wrap: wrap;
 }
 
-/* Groupe de boutons d'action */
+/* Boutons d'action */
 .postulant-action-group {
   display: flex;
   align-items: center;
@@ -377,7 +380,6 @@
   flex-wrap: wrap;
 }
 
-/* Bouton principal : Envoyer */
 .postulant-action-btn {
   padding: 12px 24px;
   background: #28a745;
@@ -400,7 +402,6 @@
   box-shadow: var(--shadow-md);
 }
 
-/* Bouton Résultats des tests */
 .postulant-results-btn {
   padding: 12px 24px;
   background: var(--primary);
@@ -435,7 +436,7 @@
   font-size: 14px;
 }
 
-/* Tableau - CORRIGÉ pour éviter les coupures */
+/* Tableau */
 .postulant-table-card {
   background: white;
   border-radius: var(--radius-lg);
@@ -651,7 +652,7 @@
   cursor: not-allowed;
 }
 
-/* Sélection des candidats */
+/* Sélection candidats */
 .postulant-select-all-btn,
 .postulant-clear-selection-btn {
   padding: 6px 14px;
@@ -687,7 +688,6 @@
   background: #e0e7ff !important;
 }
 
-/* Cases à cocher */
 .postulant-table th input[type="checkbox"],
 .postulant-table td input[type="checkbox"] {
   width: 18px;
@@ -718,140 +718,140 @@
 }
 
 /* ============================================ */
-/* RESPONSIVE - CORRECTION POUR LES COUPURES */
+/* RESPONSIVE                                   */
 /* ============================================ */
 
-/* Mobile (max 768px) */
 @media (max-width: 768px) {
   .postulant-main {
     padding: 16px;
     width: 100%;
   }
-  
+
   .postulant-main--shifted {
     margin-left: 0;
     width: 100%;
   }
-  
+
   .postulant-footer--shifted {
     margin-left: 0;
   }
-  
+
   .postulant-breadcrumb {
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .postulant-breadcrumb-left {
     flex-wrap: wrap;
   }
-  
+
   .postulant-title {
     font-size: 18px !important;
   }
-  
+
   .postulant-filters-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .postulant-tests-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .postulant-action-group {
     flex-direction: column;
     width: 100%;
   }
-  
+
   .postulant-action-btn,
   .postulant-results-btn {
     width: 100%;
     justify-content: center;
   }
-  
+
   .postulant-filters-actions {
     flex-direction: column;
   }
-  
+
   .postulant-table-controls {
     flex-direction: column;
   }
-  
+
   .postulant-table th,
   .postulant-table td {
     padding: 10px 12px;
     font-size: 12px;
   }
-  
+
   .postulant-pagination {
     flex-direction: column;
   }
-  
+
   .postulant-stats {
     width: 100%;
     justify-content: center;
   }
 }
 
-/* Petit mobile (max 480px) */
 @media (max-width: 480px) {
   .postulant-main {
     padding: 12px;
   }
-  
+
   .postulant-filters-card {
     padding: 12px;
   }
-  
+
   .postulant-filters-header {
     font-size: 14px;
   }
-  
+
   .postulant-filter-group label {
     font-size: 11px;
   }
-  
+
   .postulant-search-input input,
   .postulant-filter-group select {
     padding: 8px 32px 8px 32px;
     font-size: 12px;
   }
-  
+
   .postulant-test-content strong {
     font-size: 12px;
   }
-  
+
   .postulant-test-content small {
     font-size: 10px;
   }
-  
+
   .postulant-back-btn {
     padding: 6px 12px;
     font-size: 12px;
   }
-  
+
   .postulant-offre-badge {
     font-size: 11px;
     padding: 4px 12px;
   }
 }
 
-/* Tablette */
 @media (min-width: 769px) and (max-width: 1024px) {
   .postulant-main {
     padding: 20px 24px;
   }
-  
+
   .postulant-filters-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .postulant-tests-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-/* Modals Responsive */
+/* ============================================ */
+/* MODALS                                       */
+/* ============================================ */
+
 .postulant-modal-overlay {
   position: fixed;
   inset: 0;
@@ -867,7 +867,7 @@
 
 @keyframes fadeIn {
   from { opacity: 0; }
-  to { opacity: 1; }
+  to   { opacity: 1; }
 }
 
 .postulant-modal {
@@ -886,7 +886,7 @@
 
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .postulant-modal-header {
@@ -976,9 +976,14 @@
   transition: all 0.2s;
 }
 
-.postulant-modal-submit:hover {
+.postulant-modal-submit:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: var(--shadow-sm);
+}
+
+.postulant-modal-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .postulant-modal-submit--warning { background: var(--warning); color: #1a1a1a; }
@@ -995,11 +1000,11 @@
   .postulant-action-group {
     display: none;
   }
-  
+
   .postulant-main--shifted {
     margin-left: 0;
   }
-  
+
   .postulant-table-card {
     box-shadow: none;
     border: 1px solid #ddd;

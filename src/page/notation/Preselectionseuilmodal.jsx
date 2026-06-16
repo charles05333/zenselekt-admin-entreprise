@@ -50,7 +50,7 @@ const PreselectionSeuilModal = ({ titreOffre, seuilInitial, onClose, onConfirm }
         {/* Affichage du poste — remplace l'affichage du candidat */}
         {titreOffre && (
           <div className="psm-candidat" style={{ background: '#EBF2FF', borderRadius: 10, padding: '12px 16px', marginBottom: 16 }}>
-            <div className="psm-candidat-avatar" style={{ background: '#2563EB', fontSize: 18 }}>📋</div>
+         
             <div>
               <div className="psm-candidat-name" style={{ color: '#1a1a6e' }}>{titreOffre}</div>
               <div className="psm-candidat-sub">Ce seuil s'appliquera à l'ensemble des candidats liés à ce poste</div>
@@ -103,7 +103,7 @@ const PreselectionSeuilModal = ({ titreOffre, seuilInitial, onClose, onConfirm }
             onClick={handleConfirm}
             disabled={!selectedSeuil}
           >
-            {seuilInitial ? '✓ Mettre à jour le seuil' : '✓ Définir le seuil pour ce poste'}
+            {seuilInitial ? ' Mettre à jour le seuil' : ' Définir le seuil pour ce poste'}
           </button>
         </div>
 

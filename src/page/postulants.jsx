@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
+import Swal from 'sweetalert2';
 import './css/Postulants.css';
 import Header from "./component/Header";
 import Navbar from "./component/Navbar";
+import { useSessionGuard, LOGIN_REDIRECT } from "./component/useSessionGuard";
 
 // ── Bootstrap Icons ───────────────────────────────────────
 const BI_CDN = "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css";
@@ -15,17 +17,13 @@ function useBootstrapIcons() {
     }, []);
 }
 
+// ── Config API ────────────────────────────────────────────
+const API_BASE       = "/securebackoffice/backsecurebackoffice";
+const API_POSTULANTS = `${API_BASE}/postulants.php`;
+const API_MAIL       = `${API_BASE}/envoiMail.php`;
+
 // ── Pagination ────────────────────────────────────────────
 const PAGE_SIZE = 100;
-
-// ── Mock data ─────────────────────────────────────────────
-const MOCK_POSTULANTS = [
-    { id: 1, nom: "KOUASSI", prenoms: "Jean-Marc", email: "jm.kouassi@gmail.com", tel: "+225 07 01 23 45", telwhat: "+225 07 01 23 45", Secteur: "Informatique / Télécoms", Niveau: "licence", Niveau_A: "courant", Commune: "Cocody", Quartier: "Riviera 3", Genre: "Homme", cv_url: "#", lettre_url: "#", diplomes: ["#"], Ref_A: "Prof. Diallo - Université FHB\nTel: +225 07 00 00 01", Ref_P: "M. Traoré - DSI Orange CI", note_ia: 87, commentaire_ia: "Candidat très qualifié. Maîtrise React/Node.js confirmée. Portfolio solide avec 3 projets déployés en production. Expérience de 4 ans pertinente.", decision: "retenu" },
-    { id: 2, nom: "BAMBA", prenoms: "Fatoumata", email: "f.bamba@yahoo.fr", tel: "+225 05 45 67 89", telwhat: "+225 05 45 67 89", Secteur: "Finance / Comptabilité", Niveau: "master", Niveau_A: "moyen", Commune: "Plateau", Quartier: "Centre", Genre: "Femme", cv_url: "#", lettre_url: "#", diplomes: ["#", "#"], Ref_A: "Dr. Soro - ESCAE Abidjan", Ref_P: "Mme Koffi - DRH SGBCI", note_ia: 73, commentaire_ia: "Bonne candidate en finance. 5 ans d'audit interne. Niveau d'anglais perfectible mais compensé par une forte expertise technique.", decision: "entretien_ok" },
-    { id: 3, nom: "DIARRA", prenoms: "Oumar", email: "o.diarra@hotmail.com", tel: "+225 01 02 03 04", telwhat: "+225 01 02 03 04", Secteur: "Commerce / Négoce / Distribution", Niveau: "bts", Niveau_A: "faible", Commune: "Yopougon", Quartier: "Selmer", Genre: "Homme", cv_url: "#", lettre_url: null, diplomes: [], Ref_A: "M. Coulibaly - Lycée Technique", Ref_P: "", note_ia: 41, commentaire_ia: "Profil junior. Expérience limitée à des stages. Potentiel à confirmer sur le moyen terme.", decision: "refuse" },
-    { id: 4, nom: "N'GUESSAN", prenoms: "Aya Christine", email: "a.nguessan@gmail.com", tel: "+225 07 77 88 99", telwhat: "+225 07 77 88 99", Secteur: "Santé", Niveau: "ingenieur", Niveau_A: "bilingue", Commune: "Marcory", Quartier: "Zone 4", Genre: "Femme", cv_url: "#", lettre_url: "#", diplomes: ["#"], Ref_A: "Prof. Yao - INP-HB Yamoussoukro", Ref_P: "Dr. Adou - CHU de Cocody", note_ia: null, commentaire_ia: "", decision: "en_attente" },
-    { id: 5, nom: "COULIBALY", prenoms: "Ibrahim", email: "i.coulibaly@outlook.com", tel: "+225 05 55 44 33", telwhat: "+225 05 55 44 33", Secteur: "BTP / Matériaux de construction", Niveau: "master", Niveau_A: "courant", Commune: "Abobo", Quartier: "Avocatier", Genre: "Homme", cv_url: "#", lettre_url: "#", diplomes: ["#"], Ref_A: "", Ref_P: "M. Ba - DG Colas CI", note_ia: 62, commentaire_ia: "8 ans d'expérience en BTP. Normes ivoiriennes et internationales maîtrisées. Leadership confirmé sur chantiers de grande envergure.", decision: "en_reserve" },
-];
 
 // ── Décisions ─────────────────────────────────────────────
 const DECISIONS_MAP = {
@@ -38,7 +36,6 @@ const DECISIONS_MAP = {
     recrute:      { label: "Recruté(e)",                cls: "recrute",    color: "#5b21b6" },
 };
 
-// FIX 4 : ajout de la propriété "icon" dans chaque colonne Kanban
 const KANBAN_COLUMNS = [
     { key: "en_attente",   label: "En attente",    icon: "bi-hourglass-split" },
     { key: "retenu",       label: "Retenus",        icon: "bi-bookmark-check" },
@@ -48,89 +45,311 @@ const KANBAN_COLUMNS = [
     { key: "refuse",       label: "Non retenus",    icon: "bi-x-circle" },
 ];
 
-// ── Templates email ───────────────────────────────────────
+// ── EMAIL TEMPLATES avec placeholders (bruts, non résolus côté JS) ──
+// ── EMAIL TEMPLATES avec placeholders (bruts, non résolus côté JS) ──
+// IMPORTANT: Utiliser des apostrophes normales ' et pas &apos; ou ’
 const EMAIL_TEMPLATES = {
-    en_attente:   { sujet: "Votre candidature est en cours d'évaluation",               corps: "Madame, Monsieur,\n\nNous avons bien reçu votre candidature et nous vous informons qu'elle est actuellement en cours d'évaluation par notre équipe.\n\nNous reviendrons vers vous dans les meilleurs délais.\n\nCordialement,\nL'équipe de recrutement" },
-    refuse_cv:    { sujet: "Réponse à votre candidature — Analyse de votre CV",          corps: "Madame, Monsieur,\n\nNous vous remercions de l'intérêt que vous avez porté à notre offre d'emploi et du temps consacré à nous soumettre votre candidature.\n\nAprès une analyse attentive de votre CV, nous avons le regret de vous informer que votre profil ne correspond pas aux critères requis pour ce poste.\n\nNous conservons néanmoins votre dossier et ne manquerons pas de vous recontacter si une opportunité correspondant à votre profil se présente.\n\nCordialement,\nL'équipe de recrutement" },
-    retenu:       { sujet: "Votre candidature est retenue – Invitation à un entretien",  corps: "Madame, Monsieur,\n\nNous avons le plaisir de vous informer que votre candidature a été retenue et que nous souhaitons vous rencontrer dans le cadre d'un entretien de recrutement.\n\nNous vous contacterons prochainement pour fixer la date et l'heure.\n\nCordialement,\nL'équipe de recrutement" },
-    entretien_ok: { sujet: "Entretien validé – Prochaine étape",                         corps: "Madame, Monsieur,\n\nNous vous informons que votre entretien a été validé avec succès. Votre dossier est en cours d'examen pour la décision finale.\n\nNous vous remercions pour votre disponibilité et vous tiendrons informé(e) très prochainement.\n\nCordialement,\nL'équipe de recrutement" },
-    refuse:       { sujet: "Réponse à votre candidature",                                corps: "Madame, Monsieur,\n\nNous vous remercions de l'intérêt que vous avez porté à notre offre d'emploi.\n\nAprès examen attentif de votre dossier, nous avons le regret de vous informer que votre profil ne correspond pas aux critères requis pour ce poste.\n\nNous vous souhaitons bonne chance dans vos recherches.\n\nCordialement,\nL'équipe de recrutement" },
-    en_reserve:   { sujet: "Votre candidature est mise en réserve",                      corps: "Madame, Monsieur,\n\nNous vous informons que votre candidature a été examinée avec attention. Bien que votre profil ne corresponde pas exactement au poste actuellement ouvert, nous souhaitons conserver votre dossier dans notre vivier de talents.\n\nNous ne manquerons pas de vous recontacter si une opportunité correspondant à votre profil se présente.\n\nCordialement,\nL'équipe de recrutement" },
-    recrute:      { sujet: "Félicitations – Vous êtes recruté(e) !",                     corps: "Madame, Monsieur,\n\nNous avons le grand plaisir de vous informer que votre candidature a été retenue et que vous avez été sélectionné(e) pour rejoindre notre équipe.\n\nNous vous contacterons très prochainement pour les modalités de votre intégration.\n\nBienvenue parmi nous !\n\nCordialement,\nL'équipe de recrutement" },
+    en_attente: {
+        sujet: "Votre candidature pour le poste de {poste} est en cours d’évaluation",
+        corps: "Nous avons bien reçu votre candidature pour le poste de {poste} et nous vous informons qu'elle est actuellement en cours d’évaluation par notre équipe.\n\nNous reviendrons vers vous dans les meilleurs délais.\n\nCordialement,\nL’équipe de recrutement de {entreprise}"
+    },
+    refuse_cv: {
+        sujet: "Réponse à votre candidature pour le poste de {poste}",
+        corps: "Nous vous remercions de l’intérêt que vous avez porté au poste de {poste} au sein de {entreprise}.\n\nAprès analyse de votre CV, nous avons le regret de vous informer que votre profil ne correspond pas aux critères requis pour ce poste.\n\nNous vous souhaitons bonne continuation dans vos recherches.\n\nCordialement,\nL’équipe de recrutement de {entreprise}"
+    },
+    retenu: {
+        sujet: "Votre candidature pour le poste de {poste} est retenue — Invitation à un entretien",
+        corps: "Nous avons le plaisir de vous informer que votre candidature pour le poste de {poste} au sein de {entreprise} a été retenue.\n\nNous vous contacterons prochainement pour fixer la date et l’heure de l’entretien.\n\nCordialement,\nL’équipe de recrutement de {entreprise}"
+    },
+    entretien_ok: {
+        sujet: "Entretien validé pour le poste de {poste} — Prochaine étape",
+        corps: "Nous vous informons que votre entretien pour le poste de {poste} au sein de {entreprise} a été validé avec succès. Votre dossier est en cours d’examen final.\n\nNous vous tiendrons informé(e) très prochainement de la suite donnée à votre candidature.\n\nCordialement,\nL’équipe de recrutement de {entreprise}"
+    },
+    refuse: {
+        sujet: "Réponse à votre candidature pour le poste de {poste}",
+        corps: "Nous vous remercions de l’intérêt que vous avez porté au poste de {poste} au sein de {entreprise}.\n\nAprès examen approfondi de votre dossier, nous avons le regret de vous informer que votre profil ne correspond pas aux critères requis pour ce poste.\n\nNous vous souhaitons bonne continuation dans vos recherches.\n\nCordialement,\nL’équipe de recrutement de {entreprise}"
+    },
+    en_reserve: {
+        sujet: "Votre candidature pour le poste de {poste} est mise en réserve",
+        corps: "Votre candidature pour le poste de {poste} au sein de {entreprise} a été examinée avec attention.\n\nBien que votre profil ne corresponde pas à nos besoins immédiats, nous souhaitons conserver votre dossier dans notre vivier de talents.\n\nNous ne manquerons pas de vous recontacter si une opportunité correspondant à votre profil se présente.\n\nCordialement,\nL’équipe de recrutement de {entreprise}"
+    },
+    recrute: {
+        sujet: "Félicitations — Vous êtes recruté(e) pour le poste de {poste} !",
+        corps: "Nous avons le grand plaisir de vous informer que vous avez été sélectionné(e) pour rejoindre l’équipe de {entreprise} en tant que {poste}.\n\nNous vous contacterons très prochainement pour les modalités de votre intégration.\n\nBienvenue parmi nous !\n\nCordialement,\nL’équipe de recrutement de {entreprise}"
+    },
 };
 
+// ── Fonction de résolution des placeholders POUR LA PRÉVISUALISATION SEULEMENT ──
+// Côté JS, on résout seulement pour l'affichage dans le drawer et la modale
+// Pour l'envoi, on envoie les templates bruts au PHP
+function resolveTemplateForPreview(tpl, posteVal, entrepriseVal) {
+    const p = posteVal || "ce poste";
+    const e = entrepriseVal || "notre entreprise";
+    return {
+        sujet: tpl.sujet.replace(/\{poste\}/g, p).replace(/\{entreprise\}/g, e),
+        corps: tpl.corps.replace(/\{poste\}/g, p).replace(/\{entreprise\}/g, e),
+    };
+}
+
 const SECTEURS = [
-    "Agriculture / Élevage / Pêche", "Agroalimentaire", "Architecture / Urbanisme / Design",
-    "Art / Culture / Spectacle", "Artisanat / Métiers manuels", "Audit / Expertise comptable",
-    "Bailleur / Organisme international", "Banque / Assurance / Microfinance",
-    "Bois / Papier / Carton / Imprimerie", "BTP / Matériaux de construction",
-    "Chimie / Parachimie", "Commerce / Négoce / Distribution",
-    "Communication / Marketing / Publicité", "Droit / Juridique / Notariat",
-    "Économie / Statistiques / Recherche", "Édition / Multimédia / Presse",
-    "Education / Formation / Enseignement", "Électronique / Électricité / Énergie",
-    "Environnement / Développement durable", "Études et conseils / Consulting",
-    "Finance / Comptabilité / Gestion", "Hôtellerie / Restauration / Tourisme",
-    "Humanitaire / ONG / Associatif", "Immobilier / Foncier",
-    "Industrie pharmaceutique", "Informatique / Télécoms / Numérique",
-    "Machines et équipements / Automobile", "Management / Direction générale",
-    "Mines / Pétrole / Énergie", "Métallurgie / Travail du métal",
-    "Plastique / Caoutchouc", "Ressources humaines / Recrutement",
-    "Santé / Médical / Paramédical", "Sécurité / Défense / Gardiennage",
-    "Services aux entreprises / Facilities", "Sport / Bien-être / Loisirs",
-    "Textile / Habillement / Chaussure", "Transports / Logistique / Supply Chain",
+    "Agriculture / Élevage / Pêche","Agroalimentaire","Architecture / Urbanisme / Design",
+    "Art / Culture / Spectacle","Artisanat / Métiers manuels","Audit / Expertise comptable",
+    "Bailleur / Organisme international","Banque / Assurance / Microfinance",
+    "Bois / Papier / Carton / Imprimerie","BTP / Matériaux de construction",
+    "Chimie / Parachimie","Commerce / Négoce / Distribution",
+    "Communication / Marketing / Publicité","Droit / Juridique / Notariat",
+    "Économie / Statistiques / Recherche","Édition / Multimédia / Presse",
+    "Education / Formation / Enseignement","Électronique / Électricité / Énergie",
+    "Environnement / Développement durable","Études et conseils / Consulting",
+    "Finance / Comptabilité / Gestion","Hôtellerie / Restauration / Tourisme",
+    "Humanitaire / ONG / Associatif","Immobilier / Foncier",
+    "Industrie pharmaceutique","Informatique / Télécoms / Numérique",
+    "Machines et équipements / Automobile","Management / Direction générale",
+    "Mines / Pétrole / Énergie","Métallurgie / Travail du métal",
+    "Plastique / Caoutchouc","Ressources humaines / Recrutement",
+    "Santé / Médical / Paramédical","Sécurité / Défense / Gardiennage",
+    "Services aux entreprises / Facilities","Sport / Bien-être / Loisirs",
+    "Textile / Habillement / Chaussure","Transports / Logistique / Supply Chain",
     "Autre / Non classifié",
 ];
+
 const COMMUNES = [
-    "Abobo", "Adjamé", "Attécoubé", "Cocody", "Koumassi", "Marcory", "Plateau",
-    "Port-Bouët", "Treichville", "Yopougon", "Aboisso", "Adzopé", "Agboville",
-    "Bouaké", "Bondoukou", "Dabou", "Daloa", "Daoukro", "Dimbokro", "Divo",
-    "Ferkessédougou", "Gagnoa", "Grand-Bassam", "Guiglo", "Issia", "Jacqueville",
-    "Katiola", "Korhogo", "Man", "Minignan", "Odienné", "San-Pédro", "Sassandra",
-    "Séguéla", "Soubré", "Tabou", "Toumodi", "Yamoussoukro",
+    "Abobo","Adjamé","Attécoubé","Cocody","Koumassi","Marcory","Plateau",
+    "Port-Bouët","Treichville","Yopougon","Aboisso","Adzopé","Agboville",
+    "Bouaké","Bondoukou","Dabou","Daloa","Daoukro","Dimbokro","Divo",
+    "Ferkessédougou","Gagnoa","Grand-Bassam","Guiglo","Issia","Jacqueville",
+    "Katiola","Korhogo","Man","Minignan","Odienné","San-Pédro","Sassandra",
+    "Séguéla","Soubré","Tabou","Toumodi","Yamoussoukro",
     "Autres / Hors Côte d'Ivoire",
 ];
 
 const NIVEAUX = [
-    { value: "cepe",          label: "CEPE (Certificat d'études primaires)" },
-    { value: "bepc",          label: "BEPC / Brevet" },
-    { value: "cap",           label: "CAP" },
-    { value: "bac",           label: "Baccalauréat" },
-    { value: "bt",            label: "BT (Brevet de technicien)" },
-    { value: "bp",            label: "BP (Brevet professionnel)" },
-    { value: "bts",           label: "BTS" },
-    { value: "dut",           label: "DUT" },
-    { value: "dts",           label: "DTS" },
-    { value: "deug",          label: "DEUG / DEUST (Bac +2)" },
-    { value: "licence",       label: "Licence / Bachelor (Bac +3)" },
-    { value: "licence_pro",   label: "Licence professionnelle (Bac +3)" },
-    { value: "master",        label: "Master 1 (Bac +4)" },
-    { value: "master2",       label: "Master 2 / DEA / DESS (Bac +5)" },
-    { value: "ingenieur",     label: "Diplôme d'ingénieur (Bac +5)" },
-    { value: "grandes_ecoles",label: "Grande École (Bac +5)" },
-    { value: "doctorat",      label: "Doctorat / PhD (Bac +8)" },
-    { value: "autre",         label: "Autre / Non précisé" },
+    { value: "cepe",           label: "CEPE" },
+    { value: "bepc",           label: "BEPC / Brevet" },
+    { value: "cap",            label: "CAP" },
+    { value: "bac",            label: "Baccalauréat" },
+    { value: "bt",             label: "BT" },
+    { value: "bp",             label: "BP" },
+    { value: "bts",            label: "BTS" },
+    { value: "dut",            label: "DUT" },
+    { value: "dts",            label: "DTS" },
+    { value: "deug",           label: "DEUG / DEUST" },
+    { value: "licence",        label: "Licence / Bachelor" },
+    { value: "licence_pro",    label: "Licence pro" },
+    { value: "master",         label: "Master 1" },
+    { value: "master2",        label: "Master 2 / DEA" },
+    { value: "ingenieur",      label: "Ingénieur" },
+    { value: "grandes_ecoles", label: "Grande École" },
+    { value: "doctorat",       label: "Doctorat / PhD" },
+    { value: "autre",          label: "Autre" },
 ];
 
 // ── Helpers ───────────────────────────────────────────────
-const getNoteClass  = (n) => !n ? "pending" : n >= 80 ? "excellent" : n >= 60 ? "good" : n >= 40 ? "average" : "low";
-const getNoteLabel  = (n) => !n ? "Non évalué" : `${Math.round(n)}%`;
+const getNoteClass    = (n) => !n ? "pending" : n >= 80 ? "excellent" : n >= 60 ? "good" : n >= 40 ? "average" : "low";
+const getNoteLabel    = (n) => !n ? "Non évalué" : `${Math.round(n)}%`;
 const getDecisionInfo = (d) => DECISIONS_MAP[d] || DECISIONS_MAP["en_attente"];
-const formatDate    = (ts) => new Date(ts).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
-const getInitials   = (prenoms, nom) => `${prenoms?.[0] || ""}${nom?.[0] || ""}`.toUpperCase();
+const formatDate      = (ts) => new Date(ts).toLocaleDateString("fr-FR", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" });
+const getInitials     = (prenoms, nom) => `${prenoms?.[0]||""}${nom?.[0]||""}`.toUpperCase();
 
-// ── Comptage par statut ───────────────────────────────────
 function countByDecision(list) {
     const counts = {};
     list.forEach((p) => { counts[p.decision] = (counts[p.decision] || 0) + 1; });
     return counts;
 }
 
+// ── secureFetch ───────────────────────────────────────────
+async function secureFetch(url, options = {}) {
+    const res = await fetch(url, {
+        ...options,
+        credentials: "include",
+        headers: {
+            "X-Requested-With": "XMLHttpRequest",
+            "Content-Type": "application/json",
+            ...(options.headers ?? {}),
+        },
+        signal: options.signal ?? AbortSignal.timeout(90000),
+    });
+    if (res.status === 401) {
+        window.location.replace(LOGIN_REDIRECT);
+        return null;
+    }
+    return res;
+}
+
+// ── Helper notification avec SweetAlert2 ──────────────────
+function showNotification(icon, title, message, timer = 3000) {
+    Swal.fire({
+        icon: icon,
+        title: title,
+        text: message,
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: timer,
+        timerProgressBar: true,
+        background: icon === 'success' ? '#f0fdf4' : icon === 'error' ? '#fef2f2' : '#fffbeb',
+        color: icon === 'success' ? '#166534' : icon === 'error' ? '#991b1b' : '#92400e'
+    });
+}
+
+// ══════════════════════════════════════════════════════════
+// COMPOSANT : MODAL DÉTAIL SCORE IA
+// ══════════════════════════════════════════════════════════
+function IaScoreModal({ candidat, onClose, onReanalyze, analyzing }) {
+    useEffect(() => {
+        const h = (e) => { if (e.key === "Escape") onClose(); };
+        window.addEventListener("keydown", h);
+        return () => window.removeEventListener("keydown", h);
+    }, [onClose]);
+
+    if (!candidat) return null;
+
+    const note = candidat.note_ia;
+    const nc   = getNoteClass(note);
+    const commentaire = candidat.commentaire_ia || "";
+
+    const lines     = commentaire.split("\n\n");
+    const resume    = lines[0] || "";
+    const restLines = lines.slice(1);
+
+    const evalScores = [
+        { label: "Expérience professionnelle", value: candidat.eval_experience,     max: 25 },
+        { label: "Formation académique",        value: candidat.eval_formation,      max: 20 },
+        { label: "Compétences techniques",      value: candidat.eval_competences,    max: 20 },
+        { label: "Niveau de responsabilité",    value: candidat.eval_responsabilite, max: 15 },
+        { label: "Expérience secteur",          value: candidat.eval_secteur,        max: 15 },
+        { label: "Qualité du CV",               value: candidat.eval_cv,             max: 5  },
+    ];
+
+    const hasScores  = evalScores.some(s => s.value > 0);
+    const gaugeColor = note >= 80 ? "#16a34a" : note >= 60 ? "#0a78b5" : note >= 40 ? "#d97706" : "#dc2626";
+    const bgColor    = note >= 80 ? "#f0fdf4" : note >= 60 ? "#eff6ff" : note >= 40 ? "#fffbeb" : "#fff5f5";
+
+    return (
+        <>
+            <div className="drawer-overlay" onClick={onClose} style={{ zIndex: 1100 }} />
+            <div className="ia-score-modal" style={{ zIndex: 1101 }}>
+                <div className="ia-score-modal__header">
+                    <div className="ia-score-modal__header-left">
+                        <div className="ia-score-modal__avatar" style={{ background: gaugeColor + "22", color: gaugeColor }}>
+                            <i className="bi bi-robot" />
+                        </div>
+                        <div>
+                            <h3 className="ia-score-modal__title">Analyse Empower AI</h3>
+                            <p className="ia-score-modal__subtitle">{candidat.prenoms} {candidat.nom}</p>
+                        </div>
+                    </div>
+                    <button className="drawer-close" onClick={onClose} title="Fermer (Esc)">
+                        <i className="bi bi-x-lg" />
+                    </button>
+                </div>
+
+                <div className="ia-score-modal__body">
+                    <div className="ia-score-modal__score-block" style={{ background: bgColor, borderColor: gaugeColor + "33" }}>
+                        <div className="ia-score-modal__score-circle">
+                            <svg viewBox="0 0 80 80" className="ia-score-modal__gauge-svg">
+                                <circle cx="40" cy="40" r="34" fill="none" stroke="#e5e7eb" strokeWidth="7" />
+                                <circle
+                                    cx="40" cy="40" r="34" fill="none"
+                                    stroke={gaugeColor} strokeWidth="7"
+                                    strokeLinecap="round"
+                                    strokeDasharray={`${2 * Math.PI * 34}`}
+                                    strokeDashoffset={`${2 * Math.PI * 34 * (1 - (note || 0) / 100)}`}
+                                    transform="rotate(-90 40 40)"
+                                    style={{ transition: "stroke-dashoffset 1s ease" }}
+                                />
+                            </svg>
+                            <div className="ia-score-modal__score-center">
+                                <span className="ia-score-modal__score-value" style={{ color: gaugeColor }}>
+                                    {note ? `${Math.round(note)}%` : "—"}
+                                </span>
+                                <span className="ia-score-modal__score-label">Compatibilité</span>
+                            </div>
+                        </div>
+                        <div className="ia-score-modal__score-info">
+                            <span className={`postulants-note postulants-note--${nc}`} style={{ fontSize: 13 }}>
+                                {nc === "excellent" ? "🏆 Excellent profil" :
+                                 nc === "good"      ? "Bon candidat" :
+                                 nc === "average"   ? "Profil moyen" :
+                                 nc === "low"       ? "Faible compatibilité" :
+                                                      "Non évalué"}
+                            </span>
+                            <p className="ia-score-modal__resume">{resume || "Aucune analyse disponible."}</p>
+                        </div>
+                    </div>
+
+                    {hasScores && (
+                        <div className="ia-score-modal__section">
+                            <div className="ia-score-modal__section-title">
+                                <i className="bi bi-bar-chart-line" /> Détail des scores
+                            </div>
+                            <div className="ia-score-modal__bars">
+                                {evalScores.map((s) => {
+                                    const pct = s.max > 0 ? Math.round((s.value / s.max) * 100) : 0;
+                                    const barColor = pct >= 80 ? "#16a34a" : pct >= 60 ? "#0a78b5" : pct >= 40 ? "#d97706" : "#dc2626";
+                                    return (
+                                        <div key={s.label} className="ia-score-modal__bar-row">
+                                            <div className="ia-score-modal__bar-label">
+                                                <span>{s.label}</span>
+                                            </div>
+                                            <div className="ia-score-modal__bar-track">
+                                                <div
+                                                    className="ia-score-modal__bar-fill"
+                                                    style={{ width: `${pct}%`, background: barColor }}
+                                                />
+                                            </div>
+                                            <span className="ia-score-modal__bar-score" style={{ color: barColor }}>
+                                                {s.value}/{s.max}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {restLines.length > 0 && (
+                        <div className="ia-score-modal__section">
+                            <div className="ia-score-modal__section-title">
+                                <i className="bi bi-chat-square-quote" /> Analyse détaillée
+                            </div>
+                            <div className="ia-score-modal__detail-lines">
+                                {restLines.map((line, i) => (
+                                    <p key={i} className="ia-score-modal__detail-line">{line}</p>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="ia-score-modal__footer">
+                        <button
+                            className="drawer-btn-save"
+                            onClick={() => onReanalyze(candidat.id)}
+                            disabled={analyzing}
+                            style={{ width: "100%" }}
+                        >
+                            {analyzing
+                                ? <><i className="bi bi-hourglass-split" /> Analyse en cours…</>
+                                : <><i className="bi bi-arrow-clockwise" /> Relancer l'analyse Empower AI</>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </>
+    );
+}
+
 // ══════════════════════════════════════════════════════════
 // COMPOSANT : DRAWER PROFIL CANDIDAT
 // ══════════════════════════════════════════════════════════
-function CandidatDrawer({ candidat, onClose, onSaveDecision, onAnalyze }) {
+function CandidatDrawer({ candidat, poste, entreprise, onClose, onSaveDecision, saving, onAnalyze, analyzing }) {
     const [activeTab, setActiveTab] = useState("profil");
-    const [decisionVal, setDecisionVal] = useState(candidat.decision);
+    const [decisionVal, setDecisionVal] = useState(candidat.decision || "en_attente");
+
+    useEffect(() => {
+        setDecisionVal(candidat.decision || "en_attente");
+    }, [candidat.decision]);
 
     useEffect(() => {
         const h = (e) => { if (e.key === "Escape") onClose(); };
@@ -167,27 +386,23 @@ function CandidatDrawer({ candidat, onClose, onSaveDecision, onAnalyze }) {
 
                 <div className="drawer-tabs">
                     {[
-                        { key: "profil",     label: "Profil",      icon: "bi-person" },
-                        { key: "docs",       label: "Documents",   icon: "bi-folder" },
-                        { key: "decision",   label: "Décision",    icon: "bi-clipboard-check" },
-                        { key: "historique", label: "Historique",  icon: "bi-clock-history" },
+                        { key: "profil",     label: "Profil"     },
+                        { key: "docs",       label: "Documents"  },
+                        { key: "decision",   label: "Décision"  },
+                        { key: "historique", label: "Historique" },
                     ].map((t) => (
-                        <button
-                            key={t.key}
+                        <button key={t.key}
                             className={`drawer-tab${activeTab === t.key ? " drawer-tab--active" : ""}`}
-                            onClick={() => setActiveTab(t.key)}
-                        >
-                            <i className={`bi ${t.icon}`} /> {t.label}
+                            onClick={() => setActiveTab(t.key)}>
+                             {t.label}
                         </button>
                     ))}
                 </div>
 
                 <div className="drawer-body">
 
-                    {/* ── Tab Profil ─────────────────────────────── */}
                     {activeTab === "profil" && (
                         <div className="drawer-section-list">
-                            {/* FIX 2 : DrawerRow — suppression de la prop "icon" inutilisée */}
                             <DrawerRow label="Secteur"           value={candidat.Secteur}  />
                             <DrawerRow label="Niveau académique" value={candidat.Niveau}   />
                             <DrawerRow label="Niveau anglais"    value={candidat.Niveau_A} />
@@ -195,7 +410,15 @@ function CandidatDrawer({ candidat, onClose, onSaveDecision, onAnalyze }) {
                             <DrawerRow label="Quartier"          value={candidat.Quartier} />
                             <DrawerRow label="Genre"             value={candidat.Genre}    />
                             <DrawerRow label="WhatsApp"          value={candidat.telwhat}  />
-
+                            {candidat.noteTest != null && (
+                                <DrawerRow label="Test anglais" value={`${candidat.noteTest}/20 ${candidat.classementTest ? `— ${candidat.classementTest}` : ''}`} />
+                            )}
+                            {candidat.notePression != null && (
+                                <DrawerRow label="Test personnalité" value={`${candidat.notePression}/20 ${candidat.classementPression ? `— ${candidat.classementPression}` : ''}`} />
+                            )}
+                            {candidat.noteDomino != null && (
+                                <DrawerRow label="Domino" value={`${candidat.noteDomino}/20 ${candidat.classementDomino ? `— ${candidat.classementDomino}` : ''}`} />
+                            )}
                             {candidat.Ref_A && (
                                 <div className="drawer-ref-block">
                                     <div className="drawer-ref-title">Références académiques</div>
@@ -208,27 +431,41 @@ function CandidatDrawer({ candidat, onClose, onSaveDecision, onAnalyze }) {
                                     <pre className="drawer-ref-content">{candidat.Ref_P}</pre>
                                 </div>
                             )}
-
-                            {candidat.commentaire_ia && (
-                                <div className="drawer-ia-block">
-                                    <div className="drawer-ia-header">
-                                        <span>Analyse Empower AI</span>
-                                        <span className={`postulants-note postulants-note--${nc}`}>{getNoteLabel(candidat.note_ia)}</span>
-                                    </div>
-                                    <p className="drawer-ia-comment">{candidat.commentaire_ia}</p>
+                            <div className="drawer-ia-block">
+                                <div className="drawer-ia-header">
+                                    <span>Analyse Empower AI</span>
+                                    <span className={`postulants-note postulants-note--${nc}`}>{getNoteLabel(candidat.note_ia)}</span>
                                 </div>
-                            )}
+                                {candidat.commentaire_ia ? (
+                                    <p className="drawer-ia-comment">{candidat.commentaire_ia.split("\n\n")[0]}</p>
+                                ) : (
+                                    <p className="drawer-ia-comment" style={{ color: "#9ca3af", fontStyle: "italic" }}>
+                                        Aucune analyse effectuée. Cliquez sur "Analyser IA" pour évaluer ce candidat.
+                                    </p>
+                                )}
+                                <button
+                                    className="drawer-btn-save"
+                                    style={{ marginTop: 10 }}
+                                    onClick={() => onAnalyze(candidat.id)}
+                                    disabled={analyzing}
+                                >
+                                    {analyzing
+                                        ? <><i className="bi bi-hourglass-split" /> Analyse en cours…</>
+                                        : candidat.note_ia
+                                            ? <><i className="bi bi-arrow-clockwise" /> Ré-analyser avec Empower AI</>
+                                            : <><i className="bi bi-robot" /> Analyser avec Empower AI</>
+                                    }
+                                </button>
+                            </div>
                         </div>
                     )}
 
-                    {/* ── Tab Documents ──────────────────────────── */}
                     {activeTab === "docs" && (
                         <div className="drawer-docs-list">
-                            {/* FIX 3 : DrawerDoc — ajout des valeurs de "icon" et "color" */}
-                            <DrawerDoc label="Curriculum Vitae"       url={candidat.cv_url}     icon="bi-file-earmark-person" color="green" />
-                            <DrawerDoc label="Lettre de motivation"   url={candidat.lettre_url} icon="bi-file-earmark-text"   color="blue"  />
+                            <DrawerDoc label="Curriculum Vitae"     url={candidat.cv_url}     color="green" />
+                            <DrawerDoc label="Lettre de motivation"  url={candidat.lettre_url}   color="blue"  />
                             {candidat.diplomes?.map((url, i) => (
-                                <DrawerDoc key={i} label={`Diplôme ${i + 1}`} url={url} icon="bi-mortarboard" color="amber" />
+                                <DrawerDoc key={i} label={`Diplôme ${i + 1}`} url={url}  color="amber" />
                             ))}
                             {!candidat.cv_url && !candidat.lettre_url && (!candidat.diplomes || candidat.diplomes.length === 0) && (
                                 <div className="drawer-empty"><i className="bi bi-folder-x" /> Aucun document fourni</div>
@@ -236,42 +473,40 @@ function CandidatDrawer({ candidat, onClose, onSaveDecision, onAnalyze }) {
                         </div>
                     )}
 
-                    {/* ── Tab Décision ───────────────────────────── */}
                     {activeTab === "decision" && (
                         <div className="drawer-decision-tab">
                             <div className="drawer-field-group">
                                 <label className="drawer-field-label">Décision de recrutement</label>
-                                <select
-                                    className="drawer-select"
-                                    value={decisionVal}
-                                    onChange={(e) => setDecisionVal(e.target.value)}
-                                >
+                                <select className="drawer-select" value={decisionVal}
+                                    onChange={(e) => setDecisionVal(e.target.value)}>
                                     <option value="">-- Sélectionner --</option>
                                     {Object.entries(DECISIONS_MAP).map(([k, v]) => (
                                         <option key={k} value={k}>{v.label}</option>
                                     ))}
                                 </select>
                             </div>
-
-                            {decisionVal && EMAIL_TEMPLATES[decisionVal] && (
-                                <div className="drawer-email-preview">
-                                    <div className="drawer-email-preview-label">Email qui sera envoyé au candidat</div>
-                                    <div className="drawer-email-subject">{EMAIL_TEMPLATES[decisionVal].sujet}</div>
-                                    <pre className="drawer-email-body">{EMAIL_TEMPLATES[decisionVal].corps}</pre>
-                                </div>
-                            )}
-
-                            <button
-                                className="drawer-btn-save"
+                            {decisionVal && EMAIL_TEMPLATES[decisionVal] && (() => {
+                                // Résolution uniquement pour la prévisualisation
+                                const preview = resolveTemplateForPreview(EMAIL_TEMPLATES[decisionVal], poste, entreprise);
+                                return (
+                                    <div className="drawer-email-preview">
+                                        <div className="drawer-email-preview-label">Email qui sera envoyé au candidat</div>
+                                        <div className="drawer-email-subject">{preview.sujet}</div>
+                                        <pre className="drawer-email-body">{preview.corps}</pre>
+                                    </div>
+                                );
+                            })()}
+                            <button className="drawer-btn-save"
                                 onClick={handleDecisionSave}
-                                disabled={!decisionVal || decisionVal === candidat.decision}
-                            >
-                                <i className="bi bi-envelope-check" /> Enregistrer &amp; Notifier le candidat
+                                disabled={saving || !decisionVal || decisionVal === candidat.decision}>
+                                {saving
+                                    ? <><i className="bi bi-hourglass-split" /> Enregistrement…</>
+                                    : <><i className="bi bi-envelope-check" /> Enregistrer &amp; Notifier</>
+                                }
                             </button>
                         </div>
                     )}
 
-                    {/* ── Tab Historique ─────────────────────────── */}
                     {activeTab === "historique" && (
                         <div className="drawer-history">
                             {(candidat.audit || []).length === 0 ? (
@@ -286,16 +521,12 @@ function CandidatDrawer({ candidat, onClose, onSaveDecision, onAnalyze }) {
                                                 <div className="drawer-timeline-dot" />
                                                 <div className="drawer-timeline-content">
                                                     <div className="drawer-timeline-action">
-                                                        <span className={`postulants-decision postulants-decision--${oldDec.cls}`} style={{ fontSize: 11, padding: "2px 8px" }}>
-                                                            {oldDec.label}
-                                                        </span>
-                                                        <i className="bi bi-arrow-right" style={{ fontSize: 11, color: "#9ca3af" }} />
-                                                        <span className={`postulants-decision postulants-decision--${newDec.cls}`} style={{ fontSize: 11, padding: "2px 8px" }}>
-                                                            {newDec.label}
-                                                        </span>
+                                                        <span className={`postulants-decision postulants-decision--${oldDec.cls}`} style={{ fontSize:11, padding:"2px 8px" }}>{oldDec.label}</span>
+                                                        <i className="bi bi-arrow-right" style={{ fontSize:11, color:"#9ca3af" }} />
+                                                        <span className={`postulants-decision postulants-decision--${newDec.cls}`} style={{ fontSize:11, padding:"2px 8px" }}>{newDec.label}</span>
                                                     </div>
                                                     <div className="drawer-timeline-meta">
-                                                        <i className="bi bi-person-circle" /> {entry.user} · <i className="bi bi-clock" /> {formatDate(entry.ts)}
+                                                        <i className="bi bi-clock" /> {formatDate(entry.ts)}
                                                     </div>
                                                 </div>
                                             </div>
@@ -305,14 +536,12 @@ function CandidatDrawer({ candidat, onClose, onSaveDecision, onAnalyze }) {
                             )}
                         </div>
                     )}
-
                 </div>
             </aside>
         </>
     );
 }
 
-// FIX 2 : DrawerRow — suppression de la prop "icon" (jamais transmise, causait un className invalide)
 function DrawerRow({ label, value }) {
     if (!value) return null;
     return (
@@ -323,11 +552,10 @@ function DrawerRow({ label, value }) {
     );
 }
 
-// FIX 3 : DrawerDoc — "icon" et "color" sont maintenant des props requises avec valeur par défaut
 function DrawerDoc({ label, url, icon = "bi-file-earmark", color = "gray" }) {
     return (
         <div className={`drawer-doc drawer-doc--${color}`}>
-            <i className={`bi ${icon} drawer-doc-icon`} />
+           
             <span className="drawer-doc-label">{label}</span>
             {url ? (
                 <a className="drawer-doc-btn" href={url} target="_blank" rel="noreferrer">
@@ -340,9 +568,7 @@ function DrawerDoc({ label, url, icon = "bi-file-earmark", color = "gray" }) {
     );
 }
 
-// ══════════════════════════════════════════════════════════
-// COMPOSANT : MODAL NATIVE
-// ══════════════════════════════════════════════════════════
+// ── Modal générique ───────────────────────────────────────
 function Modal({ open, title, onClose, children, actions, size }) {
     useEffect(() => {
         if (!open) return;
@@ -350,14 +576,10 @@ function Modal({ open, title, onClose, children, actions, size }) {
         window.addEventListener("keydown", h);
         return () => window.removeEventListener("keydown", h);
     }, [open, onClose]);
-
     if (!open) return null;
     return (
         <div className="zs-modal-overlay" onClick={onClose}>
-            <div
-                className={`zs-modal${size === "lg" ? " zs-modal--lg" : ""}`}
-                onClick={(e) => e.stopPropagation()}
-            >
+            <div className={`zs-modal${size === "lg" ? " zs-modal--lg" : ""}`} onClick={(e) => e.stopPropagation()}>
                 <div className="zs-modal-header">
                     <h3 className="zs-modal-title">{title}</h3>
                     <button className="zs-modal-close" onClick={onClose}><i className="bi bi-x-lg" /></button>
@@ -369,25 +591,28 @@ function Modal({ open, title, onClose, children, actions, size }) {
     );
 }
 
-// ══════════════════════════════════════════════════════════
-// COMPOSANT : MODAL EMAIL GROUPÉ
-// ══════════════════════════════════════════════════════════
-function EmailModal({ open, onClose, candidats, emailTypeKey, onSend }) {
-    const tpl = EMAIL_TEMPLATES[emailTypeKey] || EMAIL_TEMPLATES["en_attente"];
-    const [corps, setCorps] = useState(tpl.corps);
+// ── Email modal ───────────────────────────────────────────
+function EmailModal({ open, onClose, candidats, emailTypeKey, poste, entreprise, onSend }) {
+    const [corps, setCorps] = useState("");
     const [step, setStep]   = useState(1);
+    const tpl = EMAIL_TEMPLATES[emailTypeKey] || EMAIL_TEMPLATES["en_attente"];
+    
+    // Résolution pour la prévisualisation seulement
+    const preview = resolveTemplateForPreview(tpl, poste, entreprise);
 
     useEffect(() => {
-        if (open) { setCorps((EMAIL_TEMPLATES[emailTypeKey] || EMAIL_TEMPLATES["en_attente"]).corps); setStep(1); }
+        if (open) {
+            // On garde le template BRUT avec les placeholders pour l'édition
+            // car l'utilisateur peut modifier le corps
+            setCorps(tpl.corps);
+            setStep(1);
+        }
     }, [open, emailTypeKey]);
 
     if (!open) return null;
+    
     return (
-        <Modal
-            open={open}
-            onClose={onClose}
-            title={`Email — ${candidats.length} candidat(s)`}
-            size="lg"
+        <Modal open={open} onClose={onClose} title={`Email — ${candidats.length} candidat(s)`} size="lg"
             actions={
                 step === 1 ? (
                     <>
@@ -400,43 +625,34 @@ function EmailModal({ open, onClose, candidats, emailTypeKey, onSend }) {
                     <>
                         <button className="zs-btn zs-btn--ghost" onClick={() => setStep(1)}>← Retour</button>
                         <button className="zs-btn zs-btn--send" onClick={() => { onSend(corps); onClose(); }}>
-                            <i className="bi bi-send-fill" /> Confirmer l'envoi à {candidats.length} candidat(s)
+                             Confirmer l'envoi à {candidats.length} candidat(s)
                         </button>
                     </>
                 )
-            }
-        >
+            }>
             {step === 1 ? (
                 <>
                     <div className="email-modal-field">
                         <div className="email-modal-field-label">Destinataires ({candidats.length})</div>
                         <div className="email-modal-recipients">
-                            {candidats.map((c) => (
-                                <span key={c.id} className="email-modal-chip">{c.prenoms} {c.nom}</span>
-                            ))}
+                            {candidats.map((c) => <span key={c.id} className="email-modal-chip">{c.prenoms} {c.nom}</span>)}
                         </div>
                     </div>
                     <div className="email-modal-field">
                         <div className="email-modal-field-label">Objet</div>
-                        <div className="email-modal-subject">{tpl.sujet}</div>
+                        <div className="email-modal-subject">{preview.sujet}</div>
                     </div>
                     <div className="email-modal-field">
                         <div className="email-modal-field-label">Corps du message — modifiable</div>
-                        <textarea
-                            className="email-modal-textarea"
-                            value={corps}
-                            onChange={(e) => setCorps(e.target.value)}
-                        />
+                        <textarea className="email-modal-textarea" value={corps} onChange={(e) => setCorps(e.target.value)} />
                     </div>
                 </>
             ) : (
                 <div className="email-modal-confirm">
                     <p>Vous allez envoyer un email à <strong>{candidats.length} candidat(s)</strong>.</p>
-                    <p>Objet : <em>{tpl.sujet}</em></p>
-                    <div className="email-modal-recipients" style={{ marginTop: 12 }}>
-                        {candidats.map((c) => (
-                            <span key={c.id} className="email-modal-chip">{c.prenoms} {c.nom}</span>
-                        ))}
+                    <p>Objet : <em>{preview.sujet}</em></p>
+                    <div className="email-modal-recipients" style={{ marginTop:12 }}>
+                        {candidats.map((c) => <span key={c.id} className="email-modal-chip">{c.prenoms} {c.nom}</span>)}
                     </div>
                 </div>
             )}
@@ -444,26 +660,23 @@ function EmailModal({ open, onClose, candidats, emailTypeKey, onSend }) {
     );
 }
 
-// ══════════════════════════════════════════════════════════
-// COMPOSANT : ANALYTICS MINI-DASHBOARD
-// ══════════════════════════════════════════════════════════
+// ── Analytics ─────────────────────────────────────────────
 function AnalyticsBanner({ postulants }) {
-    const counts  = countByDecision(postulants);
-    const total   = postulants.length;
-    const avgIA   = postulants.filter(p => p.note_ia).reduce((s, p) => s + p.note_ia, 0) /
+    const counts = countByDecision(postulants);
+    const total  = postulants.length;
+    const avgIA  = postulants.filter(p => p.note_ia).reduce((s, p) => s + p.note_ia, 0) /
         (postulants.filter(p => p.note_ia).length || 1);
-    const hommes  = postulants.filter(p => p.Genre === "Homme").length;
-    const femmes  = postulants.filter(p => p.Genre === "Femme").length;
+    const hommes = postulants.filter(p => p.Genre?.toLowerCase() === "homme").length;
+    const femmes = postulants.filter(p => p.Genre?.toLowerCase() === "femme").length;
 
     const stats = [
-        { label: "Total candidats",   value: total,                                                   color: "blue"   },
-        { label: "Score IA moyen",    value: `${Math.round(avgIA || 0)}%`,                            color: "purple" },
-        { label: "Retenus",           value: counts["retenu"] || 0,                                   color: "green"  },
-        { label: "Recrutés",          value: counts["recrute"] || 0,                                  color: "gold"   },
-        { label: "Non retenus",       value: (counts["refuse"] || 0) + (counts["refuse_cv"] || 0),    color: "red"    },
-        { label: "Hommes / Femmes",   value: `${hommes} / ${femmes}`,                                 color: "teal"   },
+        { label: "Total candidats",  value: total,                                                color: "blue"   },
+        { label: "Score IA moyen",   value: `${Math.round(avgIA || 0)}%`,                         color: "purple" },
+        { label: "Retenus",          value: counts["retenu"] || 0,                                color: "green"  },
+        { label: "Recrutés",         value: counts["recrute"] || 0,                               color: "gold"   },
+        { label: "Non retenus",      value: (counts["refuse"] || 0) + (counts["refuse_cv"] || 0), color: "red"    },
+        { label: "Hommes / Femmes",  value: `${hommes} / ${femmes}`,                              color: "teal"   },
     ];
-
     return (
         <div className="analytics-banner">
             {stats.map((s, i) => (
@@ -478,79 +691,51 @@ function AnalyticsBanner({ postulants }) {
     );
 }
 
-// ══════════════════════════════════════════════════════════
-// COMPOSANT : KANBAN VIEW
-// ══════════════════════════════════════════════════════════
-function KanbanView({ postulants, onCardClick, onDecisionChange }) {
+// ── Kanban ────────────────────────────────────────────────
+function KanbanView({ postulants, onCardClick, onDecisionChange, onScoreClick }) {
     const [dragId, setDragId] = useState(null);
-
-    function handleDragStart(e, id) {
-        setDragId(id);
-        e.dataTransfer.effectAllowed = "move";
-    }
-
-    function handleDrop(e, colKey) {
-        e.preventDefault();
-        if (dragId !== null) { onDecisionChange(dragId, colKey); setDragId(null); }
-    }
-
-    function handleDragOver(e) {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
-    }
+    function handleDragStart(e, id) { setDragId(id); e.dataTransfer.effectAllowed = "move"; }
+    function handleDrop(e, colKey) { e.preventDefault(); if (dragId !== null) { onDecisionChange(dragId, colKey); setDragId(null); } }
+    function handleDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }
 
     return (
         <div className="kanban-board">
             {KANBAN_COLUMNS.map((col) => {
-                const cards = postulants.filter((p) => p.decision === col.key);
+                const cards = postulants.filter((p) => (p.decision || "en_attente") === col.key);
                 const dec   = getDecisionInfo(col.key);
                 return (
-                    <div
-                        key={col.key}
-                        className="kanban-column"
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, col.key)}
-                    >
+                    <div key={col.key} className="kanban-column" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, col.key)}>
                         <div className="kanban-column-header">
-                            {/* FIX 4 : col.icon est maintenant toujours défini */}
-                            <span className={`kanban-column-icon kanban-icon--${dec.cls}`}>
-                                <i className={`bi ${col.icon}`} />
-                            </span>
+                            <span className={`kanban-column-icon kanban-icon--${dec.cls}`}><i className={`bi ${col.icon}`} /></span>
                             <span className="kanban-column-label">{col.label}</span>
                             <span className="kanban-column-count">{cards.length}</span>
                         </div>
                         <div className="kanban-cards">
-                            {cards.length === 0 && (
-                                <div className="kanban-empty">
-                                    <i className="bi bi-inbox" /> Glissez un candidat ici
-                                </div>
-                            )}
-                            {cards.map((p) => {
-                                const nc = getNoteClass(p.note_ia);
-                                return (
-                                    <div
-                                        key={p.id}
-                                        className={`kanban-card${dragId === p.id ? " kanban-card--dragging" : ""}`}
-                                        draggable
-                                        onDragStart={(e) => handleDragStart(e, p.id)}
-                                        onClick={() => onCardClick(p)}
-                                    >
-                                        <div className="kanban-card-header">
-                                            <div className="kanban-card-avatar">{getInitials(p.prenoms, p.nom)}</div>
-                                            <div className="kanban-card-info">
-                                                <div className="kanban-card-name">{p.prenoms} {p.nom}</div>
-                                                <div className="kanban-card-sector">{p.Secteur}</div>
-                                            </div>
-                                        </div>
-                                        <div className="kanban-card-footer">
-                                            <span className={`postulants-note postulants-note--${nc}`} style={{ fontSize: 11, padding: "2px 8px" }}>
-                                                {getNoteLabel(p.note_ia)}
-                                            </span>
-                                            <span className="kanban-card-commune">{p.Commune}</span>
+                            {cards.length === 0 && <div className="kanban-empty"><i className="bi bi-inbox" /> Glissez un candidat ici</div>}
+                            {cards.map((p) => (
+                                <div key={p.id}
+                                    className={`kanban-card${dragId === p.id ? " kanban-card--dragging" : ""}`}
+                                    draggable onDragStart={(e) => handleDragStart(e, p.id)} onClick={() => onCardClick(p)}>
+                                    <div className="kanban-card-header">
+                                        <div className="kanban-card-avatar">{getInitials(p.prenoms, p.nom)}</div>
+                                        <div className="kanban-card-info">
+                                            <div className="kanban-card-name">{p.prenoms} {p.nom}</div>
+                                            <div className="kanban-card-sector">{p.Secteur}</div>
                                         </div>
                                     </div>
-                                );
-                            })}
+                                    <div className="kanban-card-footer">
+                                        <span
+                                            className={`postulants-note postulants-note--${getNoteClass(p.note_ia)}`}
+                                            style={{ fontSize:11, padding:"2px 8px", cursor: p.note_ia ? "pointer" : "default" }}
+                                            onClick={(e) => { e.stopPropagation(); if (p.note_ia) onScoreClick(p); }}
+                                            title={p.note_ia ? "Voir le détail de l'analyse IA" : ""}
+                                        >
+                                            {getNoteLabel(p.note_ia)}
+                                        </span>
+                                        <span className="kanban-card-commune">{p.Commune}</span>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 );
@@ -559,49 +744,33 @@ function KanbanView({ postulants, onCardClick, onDecisionChange }) {
     );
 }
 
-// ══════════════════════════════════════════════════════════
-// COMPOSANT : BARRE D'ACTIONS GROUPÉES
-// ══════════════════════════════════════════════════════════
+// ── Bulk bar ──────────────────────────────────────────────
 function BulkActionBar({ count, onEmail, onDecision, onDeselect, emailType, setEmailType }) {
     if (count === 0) return null;
     return (
         <div className="bulk-bar">
             <div className="bulk-bar-left">
-                <button className="bulk-bar-deselect" onClick={onDeselect} title="Désélectionner tout">
-                    <i className="bi bi-x-circle" />
-                </button>
+                <button className="bulk-bar-deselect" onClick={onDeselect}><i className="bi bi-x-circle" /></button>
                 <span className="bulk-bar-count"><strong>{count}</strong> candidat{count > 1 ? "s" : ""} sélectionné{count > 1 ? "s" : ""}</span>
             </div>
             <div className="bulk-bar-actions">
-                <select
-                    className="bulk-bar-select"
-                    value={emailType}
-                    onChange={(e) => setEmailType(e.target.value)}
-                    title="Choisir le template email"
-                >
+                <select className="bulk-bar-select" value={emailType} onChange={(e) => setEmailType(e.target.value)}>
                     <option value="">Template email…</option>
-                    {Object.entries(DECISIONS_MAP).map(([k, v]) => (
-                        <option key={k} value={k}>{v.label}</option>
-                    ))}
+                    {Object.entries(DECISIONS_MAP).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                 </select>
-                <button className="bulk-bar-btn bulk-bar-btn--email"     onClick={onEmail}    disabled={!emailType}>Envoyer email</button>
-                <button className="bulk-bar-btn bulk-bar-btn--decision"  onClick={onDecision}>Changer décision</button>
+                <button className="bulk-bar-btn bulk-bar-btn--email"    onClick={onEmail}    disabled={!emailType}>Envoyer email</button>
+                <button className="bulk-bar-btn bulk-bar-btn--decision" onClick={onDecision}>Changer décision</button>
             </div>
         </div>
     );
 }
 
-// ══════════════════════════════════════════════════════════
-// COMPOSANT : MODAL CHANGEMENT DÉCISION EN MASSE
-// ══════════════════════════════════════════════════════════
+// ── Bulk decision modal ───────────────────────────────────
 function BulkDecisionModal({ open, onClose, count, onSave }) {
     const [val, setVal] = useState("");
     useEffect(() => { if (open) setVal(""); }, [open]);
     return (
-        <Modal
-            open={open}
-            onClose={onClose}
-            title={`Changer la décision — ${count} candidat(s)`}
+        <Modal open={open} onClose={onClose} title={`Changer la décision — ${count} candidat(s)`}
             actions={
                 <>
                     <button className="zs-btn zs-btn--ghost" onClick={onClose}>Annuler</button>
@@ -609,27 +778,24 @@ function BulkDecisionModal({ open, onClose, count, onSave }) {
                         <i className="bi bi-check2" /> Appliquer
                     </button>
                 </>
-            }
-        >
+            }>
             <div className="email-modal-field">
                 <div className="email-modal-field-label">Nouvelle décision pour {count} candidat(s)</div>
                 <select className="drawer-select" value={val} onChange={(e) => setVal(e.target.value)}>
                     <option value="">-- Sélectionner --</option>
-                    {Object.entries(DECISIONS_MAP).map(([k, v]) => (
-                        <option key={k} value={k}>{v.label}</option>
-                    ))}
+                    {Object.entries(DECISIONS_MAP).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                 </select>
             </div>
             {val && (
                 <div className="zs-modal-info-block">
-                    <i className="bi bi-info-circle" /> Les {count} candidat(s) sélectionnés passeront au statut <strong>{getDecisionInfo(val).label}</strong>.
+                    <i className="bi bi-info-circle" /> Les {count} candidat(s) passeront au statut <strong>{getDecisionInfo(val).label}</strong>.
                 </div>
             )}
         </Modal>
     );
 }
 
-// ── Progression Analyse ───────────────────────────────────
+// ── Progress modal ────────────────────────────────────────
 function ProgressModal({ current, total }) {
     const pct = total > 0 ? Math.round((current / total) * 100) : 0;
     return (
@@ -638,10 +804,12 @@ function ProgressModal({ current, total }) {
                 <i className="bi bi-hourglass-split" />
                 <h5>Analyse en cours avec Empower AI</h5>
                 <div className="postulants-progress-track">
-                    <div className="postulants-progress-bar" style={{ width: `${pct}%` }}>{pct > 10 && `${pct}%`}</div>
+                    <div className="postulants-progress-bar" style={{ width:`${pct}%` }}>{pct > 10 && `${pct}%`}</div>
                 </div>
                 <p className="postulants-progress-detail">{current} candidat(s) analysé(s) sur {total}</p>
-                <p className="postulants-progress-hint"><i className="bi bi-info-circle" /> Cette opération peut prendre plusieurs minutes</p>
+                <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>
+                    Chaque analyse prend ~10-20 secondes via Mistral AI
+                </p>
             </div>
         </div>
     );
@@ -654,16 +822,27 @@ function Pagination({ page, totalPages, onChange }) {
     const delta = 2;
     const range = [];
     for (let i = Math.max(2, page - delta); i <= Math.min(totalPages - 1, page + delta); i++) range.push(i);
-    pages.push(<button key={1} className={`postulants-page-num${page === 1 ? " postulants-page-num--active" : ""}`} onClick={() => onChange(1)}>1</button>);
+    pages.push(<button key={1} className={`postulants-page-num${page===1?" postulants-page-num--active":""}`} onClick={() => onChange(1)}>1</button>);
     if (range[0] > 2) pages.push(<span key="el1" className="postulants-page-ellipsis">…</span>);
-    range.forEach((n) => pages.push(<button key={n} className={`postulants-page-num${page === n ? " postulants-page-num--active" : ""}`} onClick={() => onChange(n)}>{n}</button>));
-    if (range[range.length - 1] < totalPages - 1) pages.push(<span key="el2" className="postulants-page-ellipsis">…</span>);
-    if (totalPages > 1) pages.push(<button key={totalPages} className={`postulants-page-num${page === totalPages ? " postulants-page-num--active" : ""}`} onClick={() => onChange(totalPages)}>{totalPages}</button>);
+    range.forEach((n) => pages.push(<button key={n} className={`postulants-page-num${page===n?" postulants-page-num--active":""}`} onClick={() => onChange(n)}>{n}</button>));
+    if (range[range.length-1] < totalPages-1) pages.push(<span key="el2" className="postulants-page-ellipsis">…</span>);
+    if (totalPages > 1) pages.push(<button key={totalPages} className={`postulants-page-num${page===totalPages?" postulants-page-num--active":""}`} onClick={() => onChange(totalPages)}>{totalPages}</button>);
     return (
         <div className="postulants-pagination">
-            <button className="postulants-page-btn" onClick={() => onChange(Math.max(1, page - 1))} disabled={page === 1}><i className="bi bi-chevron-left" /><span className="postulants-page-label">Précédent</span></button>
+            <button className="postulants-page-btn" onClick={() => onChange(Math.max(1,page-1))} disabled={page===1}><i className="bi bi-chevron-left" /><span className="postulants-page-label">Précédent</span></button>
             {pages}
-            <button className="postulants-page-btn" onClick={() => onChange(Math.min(totalPages, page + 1))} disabled={page === totalPages}><span className="postulants-page-label">Suivant</span><i className="bi bi-chevron-right" /></button>
+            <button className="postulants-page-btn" onClick={() => onChange(Math.min(totalPages,page+1))} disabled={page===totalPages}><span className="postulants-page-label">Suivant</span><i className="bi bi-chevron-right" /></button>
+        </div>
+    );
+}
+
+// ── Skeleton ──────────────────────────────────────────────
+function TableSkeleton() {
+    return (
+        <div style={{ padding: "24px 0" }}>
+            {[...Array(5)].map((_, i) => (
+                <div key={i} className="skeleton" style={{ height: 48, borderRadius: 8, marginBottom: 10, opacity: 1 - i * 0.15 }} />
+            ))}
         </div>
     );
 }
@@ -674,10 +853,11 @@ function Pagination({ page, totalPages, onChange }) {
 export default function Postulants() {
     useBootstrapIcons();
 
-    // FIX 1 : utilisation de useSearchParams() au lieu de window.location.search
     const [searchParams] = useSearchParams();
     const eventId = searchParams.get("event_id") || "";
     const poste   = searchParams.get("poste")    || "";
+
+    const { checked } = useSessionGuard();
 
     const [width, setWidth] = useState(window.innerWidth);
     useEffect(() => {
@@ -689,12 +869,16 @@ export default function Postulants() {
     const [sidebarOpen, setSidebarOpen] = useState(width > 768);
     useEffect(() => { if (width <= 768) setSidebarOpen(false); }, [width]);
 
-    const [postulants, setPostulants] = useState(
-        MOCK_POSTULANTS.map(p => ({ ...p, audit: [] }))
-    );
+    // ── État principal ────────────────────────────────────
+    const [postulants,  setPostulants]  = useState([]);
+    const [loading,     setLoading]     = useState(true);
+    const [error,       setError]       = useState("");
+    const [saving,      setSaving]      = useState(false);
+    const [analyzing,   setAnalyzing]   = useState(false);
+    const [viewMode,    setViewMode]    = useState("table");
+    const [entrepriseNom, setEntrepriseNom] = useState("");
 
-    const [viewMode, setViewMode] = useState("table");
-
+    // ── Filtres ───────────────────────────────────────────
     const [search,         setSearch]         = useState("");
     const [page,           setPage]           = useState(1);
     const [filterSecteur,  setFilterSecteur]  = useState("");
@@ -706,51 +890,69 @@ export default function Postulants() {
     const [filterQuartier, setFilterQuartier] = useState("");
     const [filterDecision, setFilterDecision] = useState("");
     const [filtersOpen,    setFiltersOpen]    = useState(true);
+    const [sortKey,        setSortKey]        = useState("");
+    const [sortDir,        setSortDir]        = useState("asc");
 
-    const [sortKey, setSortKey] = useState("");
-    const [sortDir, setSortDir] = useState("asc");
+    const [selectedIds,           setSelectedIds]           = useState(new Set());
+    const [emailType,             setEmailType]             = useState("");
+    const [drawerCandidat,        setDrawerCandidat]        = useState(null);
+    const [scoreModalCandidat,    setScoreModalCandidat]    = useState(null);
+    const [emailModalOpen,        setEmailModalOpen]        = useState(false);
+    const [bulkDecisionModalOpen, setBulkDecisionModalOpen] = useState(false);
+    const [progressAnalyze,       setProgressAnalyze]       = useState(null);
+    const tableRef = useRef(null);
 
+    // ── Chargement ────────────────────────────────────────
+    const loadPostulants = useCallback(async () => {
+        if (!eventId) { setError("Aucune offre sélectionnée (event_id manquant)."); setLoading(false); return; }
+        setLoading(true);
+        setError("");
+        try {
+            const res = await secureFetch(`${API_POSTULANTS}?event_id=${eventId}`);
+            if (!res) return;
+            const json = await res.json();
+            if (!json.success) throw new Error(json.message || "Erreur API");
+            
+            const postulantsData = json.data || [];
+            // Récupérer le nom de l'entreprise depuis le premier candidat
+            if (postulantsData.length > 0 && postulantsData[0].entreprise_nom) {
+                setEntrepriseNom(postulantsData[0].entreprise_nom);
+            }
+            
+            setPostulants(postulantsData.map(p => ({ ...p, audit: [] })));
+        } catch (e) {
+            setError(e.message || "Erreur lors du chargement des postulants.");
+        } finally {
+            setLoading(false);
+        }
+    }, [eventId]);
+
+    useEffect(() => { if (checked) loadPostulants(); }, [checked, loadPostulants]);
+
+    // ── Helpers UI ────────────────────────────────────────
     function handleSort(key) {
-        if (sortKey === key) { setSortDir(d => d === "asc" ? "desc" : "asc"); }
+        if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
         else { setSortKey(key); setSortDir("asc"); }
     }
-
     function SortIcon({ col }) {
         if (sortKey !== col) return <i className="bi bi-arrow-down-up sort-icon sort-icon--inactive" />;
         return <i className={`bi bi-arrow-${sortDir === "asc" ? "up" : "down"} sort-icon sort-icon--active`} />;
     }
 
-    const [selectedIds, setSelectedIds] = useState(new Set());
-    const [emailType,   setEmailType]   = useState("");
-    const [drawerCandidat, setDrawerCandidat] = useState(null);
+    useEffect(() => { setPage(1); setSelectedIds(new Set()); },
+        [search, filterSecteur, filterNiveau, filterAnglais, filterGenre, filterNoteIA, filterCommune, filterQuartier, filterDecision]);
 
-    const [emailModalOpen,       setEmailModalOpen]       = useState(false);
-    const [bulkDecisionModalOpen,setBulkDecisionModalOpen]= useState(false);
-    const [successMsg,           setSuccessMsg]           = useState("");
-
-    const [progressAnalyze, setProgressAnalyze] = useState(null);
-    const tableRef = useRef(null);
-
-    function showSuccess(msg) {
-        setSuccessMsg(msg);
-        setTimeout(() => setSuccessMsg(""), 3000);
-    }
-
-    useEffect(() => {
-        setPage(1);
-        setSelectedIds(new Set());
-    }, [search, filterSecteur, filterNiveau, filterAnglais, filterGenre, filterNoteIA, filterCommune, filterQuartier, filterDecision]);
-
+    // ── Filtrage + tri ────────────────────────────────────
     const filtered = postulants.filter((p) => {
         const q    = search.toLowerCase();
         const ms   = !q   || `${p.nom} ${p.prenoms} ${p.email} ${p.Secteur} ${p.Commune}`.toLowerCase().includes(q);
         const mSec = !filterSecteur  || p.Secteur === filterSecteur;
         const mNiv = !filterNiveau   || p.Niveau  === filterNiveau;
         const mAng = !filterAnglais  || p.Niveau_A=== filterAnglais;
-        const mGen = !filterGenre    || p.Genre.toLowerCase() === filterGenre;
+        const mGen = !filterGenre    || p.Genre?.toLowerCase() === filterGenre;
         const mCom = !filterCommune  || p.Commune === filterCommune;
-        const mQua = !filterQuartier || p.Quartier.toLowerCase().includes(filterQuartier.toLowerCase());
-        const mDec = !filterDecision || p.decision=== filterDecision;
+        const mQua = !filterQuartier || p.Quartier?.toLowerCase().includes(filterQuartier.toLowerCase());
+        const mDec = !filterDecision || (p.decision || "en_attente") === filterDecision;
         let mNote  = true;
         if (filterNoteIA) {
             const n = p.note_ia;
@@ -779,89 +981,245 @@ export default function Postulants() {
 
     function handlePageChange(n) {
         setPage(n);
-        tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        tableRef.current?.scrollIntoView({ behavior:"smooth", block:"start" });
     }
 
-    const handleSaveDecision = useCallback((id, decision) => {
-        setPostulants((prev) => prev.map((p) => {
-            if (p.id !== id) return p;
-            const auditEntry = { user: "Recruteur", oldDecision: p.decision, newDecision: decision, ts: Date.now() };
-            return { ...p, decision, audit: [...(p.audit || []), auditEntry] };
-        }));
-        setDrawerCandidat((prev) => {
-            if (!prev || prev.id !== id) return prev;
-            const auditEntry = { user: "Recruteur", oldDecision: prev.decision, newDecision: decision, ts: Date.now() };
-            return { ...prev, decision, audit: [...(prev.audit || []), auditEntry] };
-        });
-        showSuccess("Décision enregistrée — candidat notifié.");
-    }, []);
+    // ── Sauvegarde décision + envoi email individuel ──────
+    const handleSaveDecision = useCallback(async (id, decision) => {
+        setSaving(true);
+        try {
+            const res = await secureFetch(`${API_POSTULANTS}?action=decision`, {
+                method: "POST",
+                body: JSON.stringify({ postulant_id: id, decision }),
+            });
+            if (!res) return;
+            const json = await res.json();
+            if (!json.success) throw new Error(json.message);
+
+            const mkAudit = (p) => ({ oldDecision: p.decision || "en_attente", newDecision: decision, ts: Date.now() });
+            setPostulants((prev) => prev.map((p) =>
+                p.id !== id ? p : { ...p, decision, audit: [...(p.audit || []), mkAudit(p)] }
+            ));
+            setDrawerCandidat((prev) =>
+                prev?.id !== id ? prev : { ...prev, decision, audit: [...(prev.audit || []), mkAudit(prev)] }
+            );
+
+            const tpl = EMAIL_TEMPLATES[decision];
+            if (tpl) {
+                // Envoi des templates BRUTS avec placeholders - le PHP fera les remplacements
+                const mailRes = await secureFetch(`${API_MAIL}?action=send_one`, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        postulant_id: id,
+                        decision,
+                        sujet: tpl.sujet,   // ← brut avec {poste} et {entreprise}
+                        corps: tpl.corps,   // ← brut avec {poste} et {entreprise}
+                        poste: poste,
+                    }),
+                });
+                if (mailRes) {
+                    const mailJson = await mailRes.json();
+                    if (mailJson.success) {
+                        showNotification('success', 'Succès', 'Décision enregistrée & email envoyé.');
+                    } else {
+                        showNotification('warning', 'Attention', `Décision enregistrée, email échoué : ${mailJson.message}`);
+                    }
+                }
+            } else {
+                showNotification('success', 'Succès', 'Décision enregistrée.');
+            }
+        } catch (e) {
+            showNotification('error', 'Erreur', `❌ ${e.message}`);
+        } finally {
+            setSaving(false);
+        }
+    }, [poste]);
 
     function handleBulkDecision(decision) {
-        selectedIds.forEach((id) => handleSaveDecision(id, decision));
+        [...selectedIds].forEach((id) => handleSaveDecision(id, decision));
         setSelectedIds(new Set());
-        showSuccess(`Décision appliquée à ${selectedIds.size} candidat(s).`);
     }
 
-    function handleAnalyze(id) {
-        const result = { note_ia: Math.round(50 + Math.random() * 50), commentaire_ia: "Analyse IA simulée — remplacer par l'appel API Empower AI." };
-        setPostulants((prev) => prev.map((p) => p.id !== id ? p : { ...p, ...result }));
-        setDrawerCandidat((prev) => prev?.id === id ? { ...prev, ...result } : prev);
-        showSuccess("Analyse IA terminée.");
-    }
+    // ── Analyse IA ────────────────────────────────────────
+    const handleAnalyze = useCallback(async (id) => {
+        setAnalyzing(id);
+        try {
+            const res = await secureFetch(`${API_POSTULANTS}?action=analyze_ia`, {
+                method: "POST",
+                body: JSON.stringify({ postulant_id: id }),
+            });
+            if (!res) return;
+            const json = await res.json();
+
+            if (!json.success) { 
+                showNotification('error', 'Erreur', `❌ ${json.message}`); 
+                return; 
+            }
+
+            const updates = {
+                note_ia:             json.note_ia,
+                commentaire_ia:      json.commentaire_ia,
+                note_100:            json.note_100,
+                eval_experience:     json.eval_scores?.experience     ?? 0,
+                eval_formation:      json.eval_scores?.formation      ?? 0,
+                eval_competences:    json.eval_scores?.competences    ?? 0,
+                eval_responsabilite: json.eval_scores?.responsabilite ?? 0,
+                eval_secteur:        json.eval_scores?.secteur        ?? 0,
+                eval_cv:             json.eval_scores?.qualite_cv     ?? 0,
+            };
+
+            setPostulants((prev) => prev.map((p) => p.id !== id ? p : { ...p, ...updates }));
+            setDrawerCandidat((prev) => prev?.id === id ? { ...prev, ...updates } : prev);
+            setScoreModalCandidat((prev) => prev?.id === id ? { ...prev, ...updates } : prev);
+
+            showNotification('success', 'Analyse terminée', `✅ Score : ${Math.round(json.note_ia)}%`);
+        } catch (e) {
+            showNotification('error', 'Erreur', `❌ ${e.message}`);
+        } finally {
+            setAnalyzing(false);
+        }
+    }, []);
 
     async function handleAnalyzeAll() {
         const total = filtered.length;
         if (!total) return;
+        
+        Swal.fire({
+            title: 'Analyse en cours',
+            text: `Analyse de ${total} candidat(s) par Empower AI...`,
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+        
         setProgressAnalyze({ current: 0, total });
         for (let i = 0; i < total; i++) {
-            await new Promise((r) => setTimeout(r, 400));
-            const id = filtered[i].id;
-            setPostulants((prev) => prev.map((p) => p.id !== id ? p : {
-                ...p, note_ia: Math.round(50 + Math.random() * 50), commentaire_ia: "Analyse IA simulée.",
-            }));
+            await handleAnalyze(filtered[i].id);
             setProgressAnalyze({ current: i + 1, total });
+            if (i < total - 1) await new Promise((r) => setTimeout(r, 500));
         }
         setProgressAnalyze(null);
-        showSuccess(`${total} candidat(s) analysés.`);
+        Swal.close();
+        showNotification('success', 'Terminé', ` ${total} candidat(s) analysé(s) par Empower AI.`);
     }
 
+    function handleScoreClick(candidat) { setScoreModalCandidat(candidat); }
+
+    // ── Export Excel ──────────────────────────────────────
     function handleExportExcel() {
         const doExport = () => {
             const XLSX = window.XLSX;
             const wb   = XLSX.utils.book_new();
-            const headers = ["Nom","Prénoms","Email","Téléphone","WhatsApp","Secteur","Niveau","Anglais","Commune","Quartier","Genre","CV","Lettre de motivation","Diplôme 1","Diplôme 2","Diplôme 3","Score IA (%)","Commentaire IA","Décision"];
-            const rows = filtered.map((p) => [p.nom,p.prenoms,p.email,p.tel,p.telwhat,p.Secteur,p.Niveau,p.Niveau_A,p.Commune,p.Quartier,p.Genre,p.cv_url||"",p.lettre_url||"",p.diplomes?.[0]||"",p.diplomes?.[1]||"",p.diplomes?.[2]||"",p.note_ia??""  ,p.commentaire_ia??"",getDecisionInfo(p.decision).label]);
+            const headers = ["Nom","Prénoms","Email","Téléphone","WhatsApp","Secteur","Niveau","Anglais","Commune","Quartier","Genre","Score IA (%)","Décision"];
+            const rows = filtered.map((p) => [
+                p.nom, p.prenoms, p.email, p.tel, p.telwhat,
+                p.Secteur, p.Niveau, p.Niveau_A, p.Commune, p.Quartier, p.Genre,
+                p.note_ia ?? "", getDecisionInfo(p.decision).label,
+            ]);
             const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-            ws["!cols"] = [{wch:15},{wch:20},{wch:28},{wch:18},{wch:18},{wch:28},{wch:12},{wch:10},{wch:14},{wch:16},{wch:10},{wch:30},{wch:30},{wch:30},{wch:30},{wch:30},{wch:12},{wch:45},{wch:28}];
             XLSX.utils.book_append_sheet(wb, ws, "Postulants");
-            const filename = poste ? `postulants_${poste.replace(/[^a-z0-9]/gi,"_")}.xlsx` : eventId ? `postulants_offre_${eventId}.xlsx` : "postulants.xlsx";
-            XLSX.writeFile(wb, filename, { cellStyles: true });
+            const filename = poste
+                ? `postulants_${poste.replace(/[^a-z0-9]/gi,"_")}.xlsx`
+                : eventId ? `postulants_offre_${eventId}.xlsx` : "postulants.xlsx";
+            XLSX.writeFile(wb, filename);
         };
-        const XLSX_CDN = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
         if (window.XLSX) { doExport(); }
-        else { const s = document.createElement("script"); s.src = XLSX_CDN; s.onload = doExport; document.head.appendChild(s); }
+        else {
+            const s = document.createElement("script");
+            s.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+            s.onload = doExport;
+            document.head.appendChild(s);
+        }
     }
 
+    // ── Sélection ─────────────────────────────────────────
     const allPageSelected = paginated.length > 0 && paginated.every((p) => selectedIds.has(p.id));
     function toggleSelect(id) {
         setSelectedIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
     }
     function toggleSelectAll() {
-        if (allPageSelected) { setSelectedIds(new Set()); }
-        else { setSelectedIds(new Set(paginated.map((p) => p.id))); }
+        if (allPageSelected) setSelectedIds(new Set());
+        else setSelectedIds(new Set(paginated.map((p) => p.id)));
     }
     const selectedCandidats = postulants.filter((p) => selectedIds.has(p.id));
     const decisionCounts    = countByDecision(postulants);
 
-    function handleEnvoiEmail() {
-        if (!selectedIds.size || !emailType) return;
-        setEmailModalOpen(true);
-    }
-    function handleEmailSent() {
-        setSelectedIds(new Set());
-        showSuccess(`Email envoyé à ${selectedCandidats.length} candidat(s).`);
-    }
+    function handleEnvoiEmail() { if (!selectedIds.size || !emailType) return; setEmailModalOpen(true); }
 
+    // ── Envoi email en masse ──────────────────────────────
+    async function handleEmailSent(corps) {
+    const ids = [...selectedIds];
+    const tpl = EMAIL_TEMPLATES[emailType] || EMAIL_TEMPLATES["en_attente"];
+    
+    Swal.fire({
+        title: 'Envoi en cours',
+        text: `Envoi de ${ids.length} email(s)...`,
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+    });
+    
+    try {
+        const res = await secureFetch(`${API_MAIL}?action=send_bulk`, {
+            method: "POST",
+            body: JSON.stringify({
+                postulant_ids: ids,
+                decision:      emailType,
+                sujet:         tpl.sujet,
+                corps:         corps,
+                poste:         poste,
+            }),
+        });
+        if (!res) return;
+        const json = await res.json();
+        Swal.close();
+        
+        if (!json.success) throw new Error(json.message);
+
+        // ✅ AJOUT : mettre à jour la décision de chaque candidat sélectionné
+        setPostulants((prev) =>
+            prev.map((p) => {
+                if (!selectedIds.has(p.id)) return p;
+                const audit = [
+                    ...(p.audit || []),
+                    { oldDecision: p.decision || "en_attente", newDecision: emailType, ts: Date.now() }
+                ];
+                return { ...p, decision: emailType, audit };
+            })
+        );
+
+        // ✅ AJOUT : mettre à jour aussi le drawer si un candidat concerné est ouvert
+        setDrawerCandidat((prev) => {
+            if (!prev || !selectedIds.has(prev.id)) return prev;
+            const audit = [
+                ...(prev.audit || []),
+                { oldDecision: prev.decision || "en_attente", newDecision: emailType, ts: Date.now() }
+            ];
+            return { ...prev, decision: emailType, audit };
+        });
+
+        // ✅ AJOUT : persister la décision en base via l'API pour chaque candidat
+        await Promise.allSettled(
+            ids.map((id) =>
+                secureFetch(`${API_POSTULANTS}?action=decision`, {
+                    method: "POST",
+                    body: JSON.stringify({ postulant_id: id, decision: emailType }),
+                })
+            )
+        );
+        
+        setSelectedIds(new Set());
+        setEmailType("");
+        
+        const msg = json.data.failed 
+            ? `${json.data.sent} email(s) envoyé(s) — ${json.data.failed} échec(s)`
+            : `${json.data.sent} email(s) envoyé(s) avec succès`;
+        showNotification('success', 'Envoi terminé', `${msg} — décisions mises à jour`);
+    } catch (e) {
+        Swal.close();
+        showNotification('error', 'Erreur', ` ${e.message}`);
+    }
+}
+
+    // ── Carte mobile ──────────────────────────────────────
     function renderMobileCard(p) {
         const nc  = getNoteClass(p.note_ia);
         const dec = getDecisionInfo(p.decision);
@@ -875,7 +1233,14 @@ export default function Postulants() {
                             <div className="postulants-mobile-card__email">{p.email}</div>
                         </div>
                     </label>
-                    <span className={`postulants-note postulants-note--${nc}`}>{getNoteLabel(p.note_ia)}</span>
+                    <span
+                        className={`postulants-note postulants-note--${nc}`}
+                        onClick={(e) => { e.stopPropagation(); if (p.note_ia) handleScoreClick(p); }}
+                        style={{ cursor: p.note_ia ? "pointer" : "default" }}
+                        title={p.note_ia ? "Voir le détail de l'analyse" : ""}
+                    >
+                        {getNoteLabel(p.note_ia)}
+                    </span>
                 </div>
                 <div className="postulants-mobile-card__grid">
                     <div className="postulants-mobile-card__item"><span className="postulants-mobile-card__label">Secteur</span><span className="postulants-mobile-card__value">{p.Secteur}</span></div>
@@ -884,13 +1249,22 @@ export default function Postulants() {
                     <div className="postulants-mobile-card__item"><span className="postulants-mobile-card__label">Genre</span><span className="postulants-mobile-card__value">{p.Genre}</span></div>
                 </div>
                 <div className="postulants-mobile-card__footer">
-                    <span className={`postulants-decision postulants-decision--${dec.cls}`}>
-                        {dec.label}
-                    </span>
-                    <button className="drawer-analyze-btn" onClick={e => { e.stopPropagation(); handleAnalyze(p.id); }}>
-                        <i className="bi bi-robot" /> {p.note_ia ? "Ré-analyser" : "Analyser"}
+                    <span className={`postulants-decision postulants-decision--${dec.cls}`}>{dec.label}</span>
+                    <button className="drawer-analyze-btn" onClick={e => { e.stopPropagation(); handleAnalyze(p.id); }} disabled={analyzing === p.id}>
+                        <i className={`bi ${analyzing === p.id ? "bi-hourglass-split" : "bi-robot"}`} />
+                        {analyzing === p.id ? "Analyse…" : p.note_ia ? "Ré-analyser" : "Analyser"}
                     </button>
                 </div>
+            </div>
+        );
+    }
+
+    // ── Guard session ─────────────────────────────────────
+    if (!checked) {
+        return (
+            <div className="session-guard">
+                <div className="session-guard__spinner" />
+                <span className="session-guard__label">Vérification en cours…</span>
             </div>
         );
     }
@@ -904,12 +1278,6 @@ export default function Postulants() {
                 <main className={`main-content ${sidebarOpen ? "main-content--shifted" : ""}`}>
                     <div className="postulants-page">
 
-                        {successMsg && (
-                            <div className="zs-toast zs-toast--success">
-                                <i className="bi bi-check-circle-fill" /> {successMsg}
-                            </div>
-                        )}
-
                         <div className="postulants-breadcrumb">
                             <h1>
                                 {poste
@@ -919,10 +1287,18 @@ export default function Postulants() {
                                 <span className="groq-badge">⚡ Empower AI</span>
                             </h1>
                             <p>
-                                <a href="/acceuil">Bienvenue solibra</a>{" / "}
-                                <a href="/offres">Gestion des Offres</a>
+                                <a href="/securebackoffice/acceuil">Accueil</a>{" / "}
+                                <a href="/securebackoffice/offres">Gestion des Offres</a>
                             </p>
                         </div>
+
+                        {error && !loading && (
+                            <div className="postulants-error">
+                                <i className="bi bi-exclamation-circle-fill postulants-error__icon" />
+                                <span className="postulants-error__msg">{error}</span>
+                                <button className="postulants-error__btn" onClick={loadPostulants}>Réessayer</button>
+                            </div>
+                        )}
 
                         <AnalyticsBanner postulants={postulants} />
 
@@ -931,40 +1307,23 @@ export default function Postulants() {
                             <div className="postulants-toolbar">
                                 <div className="postulants-search">
                                     <i className="bi bi-search" />
-                                    <input
-                                        value={search}
-                                        onChange={(e) => setSearch(e.target.value)}
-                                        placeholder="Rechercher nom, email, secteur, commune…"
-                                    />
-                                    {search && (
-                                        <button className="postulants-search-clear" onClick={() => setSearch("")} title="Effacer">
-                                            <i className="bi bi-x" />
-                                        </button>
-                                    )}
+                                    <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher nom, email, secteur, commune…" />
+                                    {search && <button className="postulants-search-clear" onClick={() => setSearch("")}><i className="bi bi-x" /></button>}
                                 </div>
-
                                 <div style={{ display:"flex",gap:8,alignItems:"center",flexWrap:"wrap" }}>
                                     <div className="view-toggle">
-                                        <button className={`view-toggle-btn${viewMode==="table"  ? " view-toggle-btn--active":""}`} onClick={() => setViewMode("table")}  title="Vue tableau"><i className="bi bi-table"  /></button>
-                                        <button className={`view-toggle-btn${viewMode==="kanban" ? " view-toggle-btn--active":""}`} onClick={() => setViewMode("kanban")} title="Vue Kanban"><i className="bi bi-kanban" /></button>
+                                        <button className={`view-toggle-btn${viewMode==="table"  ?" view-toggle-btn--active":""}`} onClick={() => setViewMode("table")}  title="Vue tableau"><i className="bi bi-table"  /></button>
+                                        <button className={`view-toggle-btn${viewMode==="kanban" ?" view-toggle-btn--active":""}`} onClick={() => setViewMode("kanban")} title="Vue Kanban"><i className="bi bi-kanban" /></button>
                                     </div>
-                                    <button
-                                        className={`postulants-btn-filters${filtersOpen?" postulants-btn-filters--active":""}`}
-                                        onClick={() => setFiltersOpen(v => !v)}
-                                    >
-                                        <i className="bi bi-funnel" />
-                                        <span>Filtres</span>
-                                        {(filterSecteur||filterNiveau||filterAnglais||filterGenre||filterNoteIA||filterCommune||filterQuartier||filterDecision) && (
-                                            <span className="filter-active-dot" />
-                                        )}
+                                    <button className={`postulants-btn-filters${filtersOpen?" postulants-btn-filters--active":""}`} onClick={() => setFiltersOpen(v => !v)}>
+                                        <i className="bi bi-funnel" /><span>Filtres</span>
+                                        {(filterSecteur||filterNiveau||filterAnglais||filterGenre||filterNoteIA||filterCommune||filterQuartier||filterDecision) && <span className="filter-active-dot" />}
                                     </button>
                                     <button className="postulants-btn-export" onClick={handleExportExcel} title={`Exporter ${filtered.length} candidat(s)`}>
-                                        <i className="bi bi-file-earmark-excel-fill" />
-                                        <span>Exporter ({filtered.length})</span>
+                                        <i className="bi bi-file-earmark-excel-fill" /><span>Exporter ({filtered.length})</span>
                                     </button>
-                                    <button className="postulants-btn-analyze" onClick={handleAnalyzeAll}>
-                                        <i className="bi bi-robot" />
-                                        <span>Analyser IA</span>
+                                    <button className="postulants-btn-analyze" onClick={handleAnalyzeAll} disabled={!!progressAnalyze}>
+                                        <i className="bi bi-robot" /><span>Analyser tout</span>
                                     </button>
                                 </div>
                             </div>
@@ -972,7 +1331,7 @@ export default function Postulants() {
                             {filtersOpen && (
                                 <div className="postulants-filters">
                                     <div className="postulants-filter-group">
-                                        <label className="postulants-filter-label">Secteur d'activité</label>
+                                        <label className="postulants-filter-label">Secteur</label>
                                         <select className="postulants-filter-select" value={filterSecteur} onChange={(e) => setFilterSecteur(e.target.value)}>
                                             <option value="">Tous les secteurs</option>
                                             {SECTEURS.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -988,16 +1347,14 @@ export default function Postulants() {
                                     <div className="postulants-filter-group">
                                         <label className="postulants-filter-label">Niveau Anglais</label>
                                         <select className="postulants-filter-select" value={filterAnglais} onChange={(e) => setFilterAnglais(e.target.value)}>
-                                            <option value="">Tous les niveaux</option>
-                                            {["faible","moyen","courant","bilingue"].map((v) => (
-                                                <option key={v} value={v}>{v.charAt(0).toUpperCase()+v.slice(1)}</option>
-                                            ))}
+                                            <option value="">Tous</option>
+                                            {["faible","moyen","courant","bilingue"].map((v) => <option key={v} value={v}>{v.charAt(0).toUpperCase()+v.slice(1)}</option>)}
                                         </select>
                                     </div>
                                     <div className="postulants-filter-group">
                                         <label className="postulants-filter-label">Genre</label>
                                         <select className="postulants-filter-select" value={filterGenre} onChange={(e) => setFilterGenre(e.target.value)}>
-                                            <option value="">Tous les genres</option>
+                                            <option value="">Tous</option>
                                             <option value="homme">Homme</option>
                                             <option value="femme">Femme</option>
                                         </select>
@@ -1005,7 +1362,7 @@ export default function Postulants() {
                                     <div className="postulants-filter-group">
                                         <label className="postulants-filter-label">Score IA</label>
                                         <select className="postulants-filter-select" value={filterNoteIA} onChange={(e) => setFilterNoteIA(e.target.value)}>
-                                            <option value="">Tous les candidats</option>
+                                            <option value="">Tous</option>
                                             <option value="excellent">Excellent (80–100%)</option>
                                             <option value="bon">Bon (60–79%)</option>
                                             <option value="moyen">Moyen (40–59%)</option>
@@ -1016,7 +1373,7 @@ export default function Postulants() {
                                     <div className="postulants-filter-group">
                                         <label className="postulants-filter-label">Commune</label>
                                         <select className="postulants-filter-select" value={filterCommune} onChange={(e) => setFilterCommune(e.target.value)}>
-                                            <option value="">Toutes les communes</option>
+                                            <option value="">Toutes</option>
                                             {COMMUNES.map((c) => <option key={c} value={c}>{c}</option>)}
                                         </select>
                                     </div>
@@ -1027,7 +1384,7 @@ export default function Postulants() {
                                     <div className="postulants-filter-group">
                                         <label className="postulants-filter-label">Décision</label>
                                         <select className="postulants-filter-select" value={filterDecision} onChange={(e) => setFilterDecision(e.target.value)}>
-                                            <option value="">Toutes les décisions</option>
+                                            <option value="">Toutes</option>
                                             {Object.entries(DECISIONS_MAP).map(([k, v]) => (
                                                 <option key={k} value={k}>{v.label}{decisionCounts[k] ? ` (${decisionCounts[k]})` : ""}</option>
                                             ))}
@@ -1036,22 +1393,22 @@ export default function Postulants() {
                                     {(filterSecteur||filterNiveau||filterAnglais||filterGenre||filterNoteIA||filterCommune||filterQuartier||filterDecision) && (
                                         <div className="postulants-filter-group postulants-filter-group--reset">
                                             <button className="postulants-filter-reset" onClick={() => {
-                                                setFilterSecteur(""); setFilterNiveau(""); setFilterAnglais("");
-                                                setFilterGenre("");   setFilterNoteIA(""); setFilterCommune("");
-                                                setFilterQuartier(""); setFilterDecision("");
+                                                setFilterSecteur(""); setFilterNiveau(""); setFilterAnglais(""); setFilterGenre("");
+                                                setFilterNoteIA(""); setFilterCommune(""); setFilterQuartier(""); setFilterDecision("");
                                             }}>
-                                                <i className="bi bi-x-circle" /> Réinitialiser les filtres
+                                                <i className="bi bi-x-circle" /> Réinitialiser
                                             </button>
                                         </div>
                                     )}
                                 </div>
                             )}
 
-                            {viewMode === "kanban" ? (
+                            {loading ? <TableSkeleton /> : viewMode === "kanban" ? (
                                 <KanbanView
                                     postulants={filtered}
                                     onCardClick={(p) => setDrawerCandidat(p)}
                                     onDecisionChange={handleSaveDecision}
+                                    onScoreClick={handleScoreClick}
                                 />
                             ) : (
                                 <>
@@ -1060,7 +1417,7 @@ export default function Postulants() {
                                             <thead>
                                                 <tr>
                                                     <th style={{ width:36,textAlign:"center" }}>
-                                                        <input type="checkbox" className="postulants-checkbox" checked={allPageSelected} onChange={toggleSelectAll} title="Tout sélectionner" />
+                                                        <input type="checkbox" className="postulants-checkbox" checked={allPageSelected} onChange={toggleSelectAll} />
                                                     </th>
                                                     <th className="sortable" onClick={() => handleSort("nom")}>Nom &amp; Prénom <SortIcon col="nom" /></th>
                                                     <th className="sortable" onClick={() => handleSort("email")}>Email <SortIcon col="email" /></th>
@@ -1085,12 +1442,13 @@ export default function Postulants() {
                                                     const nc  = getNoteClass(p.note_ia);
                                                     const dec = getDecisionInfo(p.decision);
                                                     const sel = selectedIds.has(p.id);
+                                                    const isBeingAnalyzed = analyzing === p.id;
                                                     return (
                                                         <tr key={p.id} className={sel ? "postulants-tr--selected" : ""}>
                                                             <td style={{ textAlign:"center" }} onClick={e => e.stopPropagation()}>
                                                                 <input type="checkbox" className="postulants-checkbox" checked={sel} onChange={() => toggleSelect(p.id)} />
                                                             </td>
-                                                            <td className="postulants-td-name postulants-td-clickable" onClick={() => setDrawerCandidat(p)} title="Voir le profil complet">
+                                                            <td className="postulants-td-name postulants-td-clickable" onClick={() => setDrawerCandidat(p)}>
                                                                 <div className="td-name-inner">
                                                                     <div className="td-avatar">{getInitials(p.prenoms, p.nom)}</div>
                                                                     <span>{p.prenoms} {p.nom}</span>
@@ -1106,37 +1464,43 @@ export default function Postulants() {
                                                             <td>{p.cv_url     ? <a className="postulants-btn-dl postulants-btn-dl--cv"     href={p.cv_url}     target="_blank" rel="noreferrer"><i className="bi bi-download" /> CV</a>    : "—"}</td>
                                                             <td>{p.lettre_url ? <a className="postulants-btn-dl postulants-btn-dl--lettre" href={p.lettre_url} target="_blank" rel="noreferrer"><i className="bi bi-download" /> Lettre</a> : "—"}</td>
                                                             <td>
-                                                                {p.diplomes?.length > 0 ? (
-                                                                    <div style={{ display:"flex",flexDirection:"column",gap:3,alignItems:"center" }}>
+                                                                {p.diplomes?.length > 0
+                                                                    ? <div className="postulants-diplomes-cell">
                                                                         {p.diplomes.map((url,i) => (
                                                                             <a key={i} className="postulants-btn-dl postulants-btn-dl--diplome" href={url} target="_blank" rel="noreferrer">
                                                                                 <i className="bi bi-download" /> Diplôme {i+1}
                                                                             </a>
                                                                         ))}
                                                                     </div>
-                                                                ) : "—"}
+                                                                    : "—"
+                                                                }
                                                             </td>
                                                             <td>
-                                                                <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:3 }}>
+                                                                <div className="postulants-score-cell">
                                                                     <span
                                                                         className={`postulants-note postulants-note--${nc}`}
-                                                                        onClick={() => setDrawerCandidat(p)}
-                                                                        title="Voir l'analyse complète"
-                                                                        style={{ cursor:"pointer" }}
+                                                                        onClick={() => p.note_ia ? handleScoreClick(p) : handleAnalyze(p.id)}
+                                                                        style={{ cursor: "pointer" }}
+                                                                        title={p.note_ia ? "Cliquer pour voir le détail de l'analyse" : "Cliquer pour analyser ce candidat"}
                                                                     >
-                                                                        {getNoteLabel(p.note_ia)}
+                                                                        {isBeingAnalyzed
+                                                                            ? <><i className="bi bi-hourglass-split postulants-note--analyzing" /> …</>
+                                                                            : getNoteLabel(p.note_ia)
+                                                                        }
                                                                     </span>
-                                                                    <button className="postulants-analyze-btn" onClick={() => handleAnalyze(p.id)}>
-                                                                        <i className="bi bi-robot" />{p.note_ia ? "Ré-analyser" : "Analyser"}
+                                                                    <button
+                                                                        className="postulants-analyze-btn"
+                                                                        onClick={() => handleAnalyze(p.id)}
+                                                                        disabled={isBeingAnalyzed}
+                                                                        title="Analyser avec Mistral AI"
+                                                                    >
+                                                                        <i className={`bi ${isBeingAnalyzed ? "bi-hourglass-split" : "bi-robot"}`} />
+                                                                        {isBeingAnalyzed ? "Analyse…" : p.note_ia ? "Ré-analyser" : "Analyser"}
                                                                     </button>
                                                                 </div>
                                                             </td>
                                                             <td>
-                                                                <span
-                                                                    className={`postulants-decision postulants-decision--${dec.cls}`}
-                                                                    onClick={() => setDrawerCandidat(p)}
-                                                                    title="Modifier la décision"
-                                                                >
+                                                                <span className={`postulants-decision postulants-decision--${dec.cls}`} onClick={() => setDrawerCandidat(p)} style={{ cursor:"pointer" }}>
                                                                     {dec.label}
                                                                 </span>
                                                             </td>
@@ -1154,13 +1518,10 @@ export default function Postulants() {
                                 </>
                             )}
 
-                            {viewMode === "table" && (
+                            {!loading && viewMode === "table" && (
                                 <div className="postulants-table-footer">
                                     <span className="postulants-footer-info">
-                                        Affichage de l'élément{" "}
-                                        <strong>{filtered.length === 0 ? 0 : (page-1)*PAGE_SIZE+1}</strong> à{" "}
-                                        <strong>{Math.min(page*PAGE_SIZE, filtered.length)}</strong> sur{" "}
-                                        <strong>{filtered.length}</strong> postulant{filtered.length !== 1 ? "s" : ""}
+                                        Affichage de <strong>{filtered.length===0?0:(page-1)*PAGE_SIZE+1}</strong> à <strong>{Math.min(page*PAGE_SIZE,filtered.length)}</strong> sur <strong>{filtered.length}</strong> postulant{filtered.length!==1?"s":""}
                                         {search && <span className="postulants-footer-search"> — « {search} »</span>}
                                     </span>
                                     <Pagination page={page} totalPages={totalPages} onChange={handlePageChange} />
@@ -1172,24 +1533,32 @@ export default function Postulants() {
             </div>
 
             <footer className={`app-footer ${sidebarOpen ? "app-footer--shifted" : ""}`}>
-                © 2025 Zenselekt · Propulsé par <strong>Empower talents &amp; careers</strong>. Tous droits réservés
+                © 2025 Zenselekt · Propulsé par <strong>Empower Talents &amp; Careers</strong>. Tous droits réservés
             </footer>
 
-            <BulkActionBar
-                count={selectedIds.size}
-                emailType={emailType}
-                setEmailType={setEmailType}
-                onEmail={handleEnvoiEmail}
-                onDecision={() => setBulkDecisionModalOpen(true)}
-                onDeselect={() => setSelectedIds(new Set())}
-            />
+            <BulkActionBar count={selectedIds.size} emailType={emailType} setEmailType={setEmailType}
+                onEmail={handleEnvoiEmail} onDecision={() => setBulkDecisionModalOpen(true)}
+                onDeselect={() => setSelectedIds(new Set())} />
 
             {drawerCandidat && (
                 <CandidatDrawer
                     candidat={drawerCandidat}
+                    poste={poste}
+                    entreprise={entrepriseNom}
                     onClose={() => setDrawerCandidat(null)}
                     onSaveDecision={handleSaveDecision}
+                    saving={saving}
                     onAnalyze={handleAnalyze}
+                    analyzing={analyzing === drawerCandidat.id}
+                />
+            )}
+
+            {scoreModalCandidat && (
+                <IaScoreModal
+                    candidat={scoreModalCandidat}
+                    onClose={() => setScoreModalCandidat(null)}
+                    onReanalyze={handleAnalyze}
+                    analyzing={analyzing === scoreModalCandidat.id}
                 />
             )}
 
@@ -1198,6 +1567,8 @@ export default function Postulants() {
                 onClose={() => setEmailModalOpen(false)}
                 candidats={selectedCandidats}
                 emailTypeKey={emailType}
+                poste={poste}
+                entreprise={entrepriseNom}
                 onSend={handleEmailSent}
             />
 

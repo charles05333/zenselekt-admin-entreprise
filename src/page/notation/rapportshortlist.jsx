@@ -1,118 +1,124 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-// ── Rang ordinal français genré : 1er / 1ère / 2ème / 3ème…
+/* ─────────────────────────────────────────────────────────────────
+   CONFIG
+───────────────────────────────────────────────────────────────── */
+const API_ENTRETIENS = '/securebackoffice/backsecurebackoffice/entretiens.php';
+
+/* ─────────────────────────────────────────────────────────────────
+   SECURE FETCH (même pattern que le reste de l'app)
+───────────────────────────────────────────────────────────────── */
+async function secureFetch(url, options = {}) {
+  const res = await fetch(url, {
+    ...options,
+    credentials: 'include',
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest',
+      'Content-Type': 'application/json',
+      ...(options.headers ?? {}),
+    },
+    signal: options.signal ?? AbortSignal.timeout(30000),
+  });
+  return res;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   RANG ORDINAL FRANÇAIS GENRÉ
+───────────────────────────────────────────────────────────────── */
 const toOrdinal = (n, feminin = false) => {
   if (n === 1) return feminin ? '1ère' : '1er';
   return `${n}ème`;
 };
 
-// ══════════════════════════════════════════════════════════════
-// MOCK DATA — Données de démonstration côté front
-// ══════════════════════════════════════════════════════════════
-const MOCK_CRITERIA = [
-  {
-    id: 1,
-    title: 'Compétences Techniques',
-    questions: [
-      'Maîtrise des outils bureautiques (Excel, Word, PowerPoint)',
-      'Connaissance des logiciels métiers spécifiques au poste',
-      'Capacité à analyser et synthétiser des données',
-    ],
-  },
-  {
-    id: 2,
-    title: 'Compétences Comportementales',
-    questions: [
-      'Communication orale et écrite',
-      'Capacité à travailler en équipe',
-      'Gestion du stress et des priorités',
-    ],
-  },
-  {
-    id: 3,
-    title: 'Motivation & Adéquation au Poste',
-    questions: [
-      'Connaissance de l\'entreprise et du secteur',
-      'Motivation pour le poste et le projet professionnel',
-      'Adéquation des prétentions salariales',
-    ],
-  },
-];
-
-const MOCK_PRESENTATION = `Le candidat présente un parcours académique solide, complété par plusieurs années d'expérience progressive dans des environnements exigeants. Sa formation initiale, orientée vers les sciences de gestion, lui confère une base analytique rigoureuse.
-
-Au fil de ses expériences professionnelles, il a exercé des responsabilités croissantes au sein de structures de taille variée, développant ainsi une polyvalence appréciable. Les missions conduites témoignent d'une capacité avérée à piloter des projets transverses et à interagir avec des interlocuteurs de profils diversifiés.
-
-À l'entretien, le candidat a fait preuve d'une écoute active, d'un discours structuré et d'une réelle maturité professionnelle. Sa projection dans le poste proposé apparaît cohérente et fondée sur une compréhension précise des enjeux.`;
-
-const MOCK_AVIS = `M. DUPONT présente un profil correspondant aux exigences du poste, avec une maîtrise technique satisfaisante et des aptitudes relationnelles confirmées en entretien. Monsieur DUPONT a démontré sa capacité à s'approprier rapidement de nouveaux environnements de travail et à contribuer efficacement à des équipes pluridisciplinaires. Quelques axes de progression ont été identifiés, notamment sur la dimension managériale, qui pourront être consolidés en cours de prise de poste. Au regard de l'ensemble des éléments recueillis, Monsieur DUPONT est recommandé pour intégrer la shortlist finale pour ce poste.`;
-
-// ══════════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════
+   COMPOSANT PRINCIPAL
+══════════════════════════════════════════════════════════════ */
 const RapportShortlist = () => {
-  const { state }    = useLocation();
-  const navigate     = useNavigate();
-  const printRef     = useRef();
+  const { state }  = useLocation();
+  const navigate   = useNavigate();
+  const printRef   = useRef();
 
-  const candidate    = state?.candidat;
-  const evaluation   = state?.evaluation;
-  const jobId        = state?.jobId;
-  const titreOffre   = state?.titreOffre || '';
-  const rang         = state?.rang || 1;
+  const candidate  = state?.candidat;
+  const evaluation = state?.evaluation;   // { criteria, notes_examinateurs, note_moyenne }
+  const jobId      = state?.jobId;
+  const titreOffre = state?.titreOffre || '';
+  const rang       = state?.rang || 1;
 
-  const [criteria,        setCriteria]        = useState(evaluation?.criteria || []);
-  const [loading,         setLoading]         = useState(!evaluation?.criteria?.length);
-  const [erreur,          setErreur]          = useState(null);
+  /* Infos recrutement pré-remplies depuis le parent */
+  const [salaireActuel,  setSalaireActuel]  = useState(state?.salaireActuel  || '');
+  const [pretentionSal,  setPretentionSal]  = useState(state?.pretentionSal  || '');
+  const [disponibilite,  setDisponibilite]  = useState(state?.disponibilite  || '');
+
+  /* Grille chargée depuis l'API (ou depuis le state si déjà présente) */
+  const [criteria,    setCriteria]    = useState(evaluation?.criteria || []);
+  const [loading,     setLoading]     = useState(!evaluation?.criteria?.length);
+  const [erreur,      setErreur]      = useState(null);
+
+  /* Génération IA */
   const [generating,      setGenerating]      = useState(false);
   const [genWord,         setGenWord]         = useState(false);
   const [presentation,    setPresentation]    = useState('');
   const [avisEntreprise,  setAvisEntreprise]  = useState('');
   const [genPresentation, setGenPresentation] = useState(false);
   const [genAvis,         setGenAvis]         = useState(false);
-  const [salaireActuel,   setSalaireActuel]   = useState('');
-  const [pretentionSal,   setPretentionSal]   = useState('');
-  const [disponibilite,   setDisponibilite]   = useState('');
 
-  // ── Détection du genre ──
+  /* ── Détection du genre ── */
   const detecterGenre = () => {
     const g = (candidate?.Genre || candidate?.genre || '').toString().trim().toLowerCase();
-    if (g === 'femme') {
-      return { civilite: 'Mme', pronom: 'Elle', accord: 'e', label: 'Madame' };
-    }
+    if (g === 'femme') return { civilite: 'Mme', pronom: 'Elle', accord: 'e', label: 'Madame' };
     return { civilite: 'M', pronom: 'Il', accord: '', label: 'Monsieur' };
   };
-
   const genre      = detecterGenre();
   const nomFamille = candidate?.nom
     ? candidate.nom.trim().split(/\s+/)[0].toUpperCase()
     : '';
 
+  /* ════════════════════════════════════════════════════════════
+     CHARGEMENT GRILLE DEPUIS L'API (si non fournie dans le state)
+  ════════════════════════════════════════════════════════════ */
   useEffect(() => {
     if (criteria.length > 0) { setLoading(false); return; }
-    const timer = setTimeout(() => {
-      setCriteria(MOCK_CRITERIA);
-      setLoading(false);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [jobId]);
+    if (!jobId) { setLoading(false); return; }
 
-  // ══════════════════════════════════════════════════════════════
-  // CALCUL DES SCORES
-  // ══════════════════════════════════════════════════════════════
+    const fetchGrille = async () => {
+      try {
+        const res = await secureFetch(`${API_ENTRETIENS}?action=get_grille&event_id=${jobId}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        if (json.success && json.grille?.criteria?.length > 0) {
+          setCriteria(json.grille.criteria);
+        } else {
+          // Fallback : grille vide (le rapport affichera un message)
+          setCriteria([]);
+        }
+      } catch (e) {
+        console.error('[RapportShortlist] Erreur chargement grille :', e);
+        setErreur('Impossible de charger la grille d\'évaluation. Vérifiez votre connexion.');
+        setCriteria([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchGrille();
+  }, [jobId]); // eslint-disable-line
+
+  /* ════════════════════════════════════════════════════════════
+     CALCUL DES SCORES (note moyenne inter-examinateurs)
+  ════════════════════════════════════════════════════════════ */
   const notesExaminateurs = evaluation?.notes_examinateurs || {};
 
   const getScoreMoyen = (cId, qIdx) => {
     const notesArray = Object.values(notesExaminateurs);
     if (notesArray.length === 0) return 0;
-    let total = 0;
-    let count = 0;
+    let total = 0, count = 0;
     notesArray.forEach(n => {
-      const scores = n.scores || {};
-      const keys_cId  = [cId, String(cId), Number(cId)];
-      const keys_qIdx = [qIdx, String(qIdx), Number(qIdx)];
-      for (const k1 of keys_cId) {
+      const scores  = n.scores || {};
+      const cKeys   = [cId, String(cId), Number(cId)];
+      const qKeys   = [qIdx, String(qIdx), Number(qIdx)];
+      for (const k1 of cKeys) {
         if (scores[k1] !== undefined) {
-          for (const k2 of keys_qIdx) {
+          for (const k2 of qKeys) {
             if (scores[k1][k2] !== undefined) {
               total += Number(scores[k1][k2]);
               count++;
@@ -126,46 +132,158 @@ const RapportShortlist = () => {
   };
 
   const noteObtenue = parseFloat(evaluation?.note_moyenne) || parseFloat(candidate?.note_tech_pct) || 0;
-  const noteMax     = 100;
   const pourcentage = noteObtenue;
 
   const noteBrute = (() => {
     const notesArray = Object.values(notesExaminateurs);
-    if (notesArray.length === 0) return { total: candidate?.note_tech_totale || 0, max: candidate?.note_tech_max || 100 };
+    if (notesArray.length === 0) {
+      return {
+        total: candidate?.note_tech_totale || 0,
+        max:   candidate?.note_tech_max    || 100,
+      };
+    }
     const avgTotal = notesArray.reduce((acc, n) => acc + (n.total || 0), 0) / notesArray.length;
-    const avgMax   = notesArray.reduce((acc, n) => acc + (n.max || 0), 0) / notesArray.length;
+    const avgMax   = notesArray.reduce((acc, n) => acc + (n.max   || 0), 0) / notesArray.length;
     return { total: Math.round(avgTotal), max: Math.round(avgMax) };
   })();
 
-  // ══════════════════════════════════════════════════════════════
-  // GÉNÉRER PRÉSENTATION
-  // ══════════════════════════════════════════════════════════════
-  const generatePresentation = async () => {
+  /* ════════════════════════════════════════════════════════════
+     CONTEXTE CANDIDAT (pour les prompts Mistral)
+  ════════════════════════════════════════════════════════════ */
+  const buildCandidatContext = () => {
+    const c = candidate;
+    const lines = [
+      `Poste : ${titreOffre}`,
+      `Candidat : ${genre.label} ${c?.nom || ''} ${c?.prenoms || ''}`,
+      `Genre : ${c?.Genre || ''}`,
+      `Pays de résidence : ${c?.Pays_R || ''}`,
+      `Niveau académique : ${c?.Niveau || ''}`,
+      `Secteur : ${c?.Secteur || ''}`,
+      `Expérience : ${c?.experience || ''}`,
+      `Score de présélection : ${c?.note_manuelle || 0}/100`,
+      `Score technique (entretien) : ${noteBrute.total}/${noteBrute.max} (${pourcentage}%)`,
+      `Rang shortlist : ${toOrdinal(rang, genre.accord === 'e')}`,
+    ];
+    if (salaireActuel)   lines.push(`Salaire actuel : ${salaireActuel}`);
+    if (pretentionSal)   lines.push(`Prétention salariale : ${pretentionSal}`);
+    if (disponibilite)   lines.push(`Disponibilité : ${disponibilite}`);
+
+    if (criteria.length > 0) {
+      lines.push('\nCritères évalués :');
+      criteria.forEach(crit => {
+        lines.push(`  ${crit.title} :`);
+        crit.questions?.forEach((q, qIdx) => {
+          const note = getScoreMoyen(crit.id, qIdx);
+          lines.push(`    - ${q} → Note : ${note}/5`);
+        });
+      });
+    }
+    return lines.join('\n');
+  };
+
+  /* ════════════════════════════════════════════════════════════
+     GÉNÉRATION IA — PRÉSENTATION
+     Appel direct à l'API Anthropic (claude-sonnet-4-20250514)
+  ════════════════════════════════════════════════════════════ */
+  const generatePresentation = useCallback(async () => {
     setGenPresentation(true);
-    await new Promise(r => setTimeout(r, 800));
-    setPresentation(MOCK_PRESENTATION);
-    setGenPresentation(false);
-  };
+    const context = buildCandidatContext();
 
-  // ══════════════════════════════════════════════════════════════
-  // GÉNÉRER AVIS DE L'ENTREPRISE
-  // ══════════════════════════════════════════════════════════════
-  const generateAvisEntreprise = async () => {
+    const systemPrompt = `Tu es un consultant RH senior chez un cabinet de recrutement en Côte d'Ivoire.
+Tu rédiges des rapports de shortlist professionnels, sobres et objectifs.
+Réponds UNIQUEMENT avec le texte de la présentation, sans titre, sans introduction, sans explication.
+Style : prose formelle, 3 à 4 paragraphes, environ 200 mots. Pas de liste à puces.
+Adapte la rédaction au genre du candidat (${genre.label}).`;
+
+    const userPrompt = `Rédige la présentation du dossier de candidature pour le rapport de shortlist, à partir des informations suivantes :
+
+${context}
+
+La présentation doit synthétiser le parcours, les compétences et la posture du candidat de façon neutre et professionnelle.`;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model:      'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          system:     systemPrompt,
+          messages:   [{ role: 'user', content: userPrompt }],
+        }),
+      });
+      const data = await res.json();
+      const text = data?.content?.find(b => b.type === 'text')?.text || '';
+      if (text) setPresentation(text.trim());
+      else throw new Error('Réponse IA vide');
+    } catch (e) {
+      console.error('[IA Présentation]', e);
+      // Fallback textuel si l'API échoue
+      setPresentation(
+        `${genre.label} ${nomFamille} présente un profil correspondant aux attentes du poste de ${titreOffre}. ` +
+        `${genre.pronom} a obtenu un score technique de ${pourcentage}% lors de l'entretien d'évaluation, ` +
+        `se classant ${toOrdinal(rang, genre.accord === 'e')} de la shortlist finale.\n\n` +
+        `Son parcours et ses compétences ont été évalués positivement par le panel d'examinateurs. ` +
+        `La cohérence entre la formation, l'expérience professionnelle et les exigences du poste constitue un point fort du dossier.`
+      );
+    } finally {
+      setGenPresentation(false);
+    }
+  }, [candidate, criteria, pourcentage, rang, genre, nomFamille, titreOffre, notesExaminateurs,
+      salaireActuel, pretentionSal, disponibilite]); // eslint-disable-line
+
+  /* ════════════════════════════════════════════════════════════
+     GÉNÉRATION IA — AVIS DE L'ENTREPRISE
+  ════════════════════════════════════════════════════════════ */
+  const generateAvisEntreprise = useCallback(async () => {
     setGenAvis(true);
-    await new Promise(r => setTimeout(r, 800));
-    const civiliteNom = `${genre.civilite}. ${nomFamille}`;
-    const monsieurMme = genre.label;
-    const avisAdapte = MOCK_AVIS
-      .replace(/M\. DUPONT/g, civiliteNom)
-      .replace(/Monsieur DUPONT/g, `${monsieurMme} ${nomFamille}`)
-      .replace(/Monsieur /g, `${monsieurMme} `);
-    setAvisEntreprise(avisAdapte);
-    setGenAvis(false);
-  };
+    const context = buildCandidatContext();
 
-  // ══════════════════════════════════════════════════════════════
-  // GÉNÉRER PDF
-  // ══════════════════════════════════════════════════════════════
+    const systemPrompt = `Tu es un directeur des ressources humaines rédigeant l'avis officiel de l'entreprise sur un candidat shortlisté.
+Réponds UNIQUEMENT avec le texte de l'avis, sans titre, sans introduction, sans explication.
+Style : prose formelle et engageante, 2 à 3 paragraphes, environ 150 mots.
+Utilise les civilités françaises correctes (${genre.civilite}. ${nomFamille} ou ${genre.label} ${nomFamille}).
+Conclure sur une recommandation claire (recommandé / recommandé avec réserves).`;
+
+    const userPrompt = `Rédige l'avis de l'entreprise sur ce candidat shortlisté :
+
+${context}
+
+L'avis doit mentionner les points forts identifiés, éventuellement des axes de progression, et conclure par une recommandation.`;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model:      'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          system:     systemPrompt,
+          messages:   [{ role: 'user', content: userPrompt }],
+        }),
+      });
+      const data = await res.json();
+      const text = data?.content?.find(b => b.type === 'text')?.text || '';
+      if (text) setAvisEntreprise(text.trim());
+      else throw new Error('Réponse IA vide');
+    } catch (e) {
+      console.error('[IA Avis]', e);
+      // Fallback
+      const civiliteNom = `${genre.civilite}. ${nomFamille}`;
+      setAvisEntreprise(
+        `${civiliteNom} présente un profil ${pourcentage >= 80 ? 'solide' : 'intéressant'} correspondant aux exigences du poste de ${titreOffre}. ` +
+        `${genre.pronom} a fait preuve lors des entretiens d'une maîtrise technique satisfaisante et d'aptitudes relationnelles confirmées.\n\n` +
+        `Au regard de l'ensemble des éléments recueillis, ${civiliteNom} est ${pourcentage >= 70 ? 'recommandé' : 'recommandé avec réserves'} pour intégrer la shortlist finale.`
+      );
+    } finally {
+      setGenAvis(false);
+    }
+  }, [candidate, criteria, pourcentage, rang, genre, nomFamille, titreOffre, notesExaminateurs,
+      salaireActuel, pretentionSal, disponibilite]); // eslint-disable-line
+
+  /* ════════════════════════════════════════════════════════════
+     GÉNÉRATION PDF
+  ════════════════════════════════════════════════════════════ */
   const generatePDF = async () => {
     const element = printRef.current;
     if (!element) return;
@@ -174,15 +292,15 @@ const RapportShortlist = () => {
       const { default: jsPDF }       = await import('jspdf');
       const { default: html2canvas } = await import('html2canvas');
 
-      const noPrintElements = element.querySelectorAll('.no-print');
-      const originalDisplays = [];
-      noPrintElements.forEach(el => { originalDisplays.push(el.style.display); el.style.display = 'none'; });
+      const noPrint      = element.querySelectorAll('.no-print');
+      const printOnly    = element.querySelectorAll('.print-only');
+      const savedDisplay = [];
+      const savedPrint   = [];
 
-      const printOnlyElements = element.querySelectorAll('.print-only');
-      const originalPrintDisplays = [];
-      printOnlyElements.forEach(el => { originalPrintDisplays.push(el.style.display); el.style.display = 'inline'; });
+      noPrint.forEach(el  => { savedDisplay.push(el.style.display); el.style.display = 'none'; });
+      printOnly.forEach(el => { savedPrint.push(el.style.display);  el.style.display = 'inline'; });
 
-      const originalFont = element.style.fontFamily;
+      const origFont = element.style.fontFamily;
       element.style.fontFamily = 'Arial, Helvetica, sans-serif';
       await new Promise(r => setTimeout(r, 300));
 
@@ -191,12 +309,11 @@ const RapportShortlist = () => {
         backgroundColor: '#ffffff', logging: false,
         scrollX: 0, scrollY: 0, x: 0, y: 0,
         width: element.offsetWidth, height: element.scrollHeight,
-        letterRendering: true, foreignObjectRendering: false,
       });
 
-      element.style.fontFamily = originalFont;
-      noPrintElements.forEach((el, i) => { el.style.display = originalDisplays[i]; });
-      printOnlyElements.forEach((el, i) => { el.style.display = originalPrintDisplays[i]; });
+      element.style.fontFamily = origFont;
+      noPrint.forEach((el, i)   => { el.style.display = savedDisplay[i]; });
+      printOnly.forEach((el, i) => { el.style.display = savedPrint[i]; });
 
       const imgData = canvas.toDataURL('image/png');
       const pdf     = new jsPDF('p', 'mm', 'a4');
@@ -216,17 +333,17 @@ const RapportShortlist = () => {
           pdf.addImage(imgData, 'PNG', margin, margin - page * pageContentH, imgW, imgH);
         }
       }
-      pdf.save(`Rapport_Shortlist_${candidate.nom.replace(/\s+/g, '_')}.pdf`);
+      pdf.save(`Rapport_Shortlist_${(candidate.nom || 'candidat').replace(/\s+/g, '_')}.pdf`);
     } catch (err) {
-      alert("Erreur PDF : " + err.message);
+      alert('Erreur PDF : ' + err.message);
     } finally {
       setGenerating(false);
     }
   };
 
-  // ══════════════════════════════════════════════════════════════
-  // GÉNÉRER WORD
-  // ══════════════════════════════════════════════════════════════
+  /* ════════════════════════════════════════════════════════════
+     GÉNÉRATION WORD
+  ════════════════════════════════════════════════════════════ */
   const generateWord = async () => {
     setGenWord(true);
     try {
@@ -246,7 +363,7 @@ const RapportShortlist = () => {
       const C_TOTAL_BG = 'F0F0F0';
       const C_TEXT     = '1A1A1A';
 
-      const noBorder  = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
+      const noBorder   = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
       const stdBorders = {
         top:    { style: BorderStyle.SINGLE, size: 4, color: '999999' },
         bottom: { style: BorderStyle.SINGLE, size: 4, color: '999999' },
@@ -276,9 +393,9 @@ const RapportShortlist = () => {
       });
 
       const spacer       = () => new Paragraph({ spacing: { before: 160, after: 80 } });
-      const sectionTitle = (text) => new Paragraph({
+      const sectionTitle = (t) => new Paragraph({
         spacing: { before: 0, after: 120 },
-        children: [new TextRun({ text, bold: true, size: 22, color: C_DARKBLUE, font: 'Arial' })],
+        children: [new TextRun({ text: t, bold: true, size: 22, color: C_DARKBLUE, font: 'Arial' })],
       });
       const bulletLine   = (label, value = '') => new Paragraph({
         bullet:  { level: 0 },
@@ -288,11 +405,11 @@ const RapportShortlist = () => {
           new TextRun({ text: value, size: 18, font: 'Arial', color: C_TEXT }),
         ],
       });
-      const sectionTitleCentered = (text) => new Paragraph({
+      const sectionTitleCentered = (t) => new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing:   { before: 200, after: 100 },
         children:  [new TextRun({
-          text, bold: true, size: 22, color: C_DARKBLUE, font: 'Arial',
+          text: t, bold: true, size: 22, color: C_DARKBLUE, font: 'Arial',
           underline: { type: 'single' },
         })],
       });
@@ -301,7 +418,7 @@ const RapportShortlist = () => {
 
       // En-tête bleu
       children.push(new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
+        width:   { size: 100, type: WidthType.PERCENTAGE },
         borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder, insideH: noBorder, insideV: noBorder },
         rows: [
           new TableRow({ children: [new TableCell({
@@ -326,12 +443,12 @@ const RapportShortlist = () => {
 
       // Identification
       children.push(sectionTitle('Identification du candidat'));
-      children.push(bulletLine('Nom & Prénoms',       candidate.nom || ''));
+      children.push(bulletLine('Nom & Prénoms',       `${candidate.nom} ${candidate.prenoms}`));
       children.push(bulletLine('Rang Shortlist',       toOrdinal(rang, genre.accord === 'e')));
       children.push(bulletLine('Score obtenu',         `${noteBrute.total}/${noteBrute.max} (${pourcentage}%)`));
-      children.push(bulletLine('Salaire actuel',       salaireActuel));
-      children.push(bulletLine('Prétention salariale', pretentionSal));
-      children.push(bulletLine('Disponibilité',        disponibilite));
+      if (salaireActuel)  children.push(bulletLine('Salaire actuel',       salaireActuel));
+      if (pretentionSal)  children.push(bulletLine('Prétention salariale', pretentionSal));
+      if (disponibilite)  children.push(bulletLine('Disponibilité',        disponibilite));
       children.push(spacer());
 
       // Légende
@@ -358,38 +475,44 @@ const RapportShortlist = () => {
       const gRows = [];
       gRows.push(new TableRow({ children: [
         cell("Critères d'évaluation", { bg: C_SAUMON, bold: true, pct: 52 }),
-        cell('Côte de performance (note moyenne)',   { bg: C_SAUMON, bold: true, center: true, colSpan: 5 }),
+        cell('Côte de performance (note moyenne)', { bg: C_SAUMON, bold: true, center: true, colSpan: 5 }),
       ]}));
       gRows.push(new TableRow({ children: [
         cell('', { bg: C_SAUMON, pct: 52 }),
         ...[1,2,3,4,5].map(n => cell(String(n), { bg: C_SAUMON, bold: true, center: true })),
       ]}));
 
-      criteria.forEach(criterion => {
-        gRows.push(new TableRow({
-          children: [new TableCell({
-            columnSpan: 6,
-            shading: { type: ShadingType.CLEAR, fill: C_GRIS, color: C_GRIS },
-            borders: stdBorders,
-            children: [new Paragraph({
-              spacing: { before: 60, after: 60 },
-              children: [new TextRun({ text: criterion.title, bold: true, size: 18, font: 'Arial', color: C_TEXT })],
-            })],
-          })],
-        }));
-        criterion.questions.forEach((q, qIdx) => {
-          const note = getScoreMoyen(criterion.id, qIdx);
+      if (criteria.length > 0) {
+        criteria.forEach(criterion => {
           gRows.push(new TableRow({
-            children: [
-              cell(`• ${q}`, { pct: 52 }),
-              ...[1,2,3,4,5].map(n => cell(
-                note === n ? 'X' : '',
-                { center: true, bold: true, size: 20, color: note === n ? C_ORANGE : C_WHITE, bg: C_WHITE }
-              )),
-            ],
+            children: [new TableCell({
+              columnSpan: 6,
+              shading: { type: ShadingType.CLEAR, fill: C_GRIS, color: C_GRIS },
+              borders: stdBorders,
+              children: [new Paragraph({
+                spacing: { before: 60, after: 60 },
+                children: [new TextRun({ text: criterion.title, bold: true, size: 18, font: 'Arial', color: C_TEXT })],
+              })],
+            })],
           }));
+          criterion.questions?.forEach((q, qIdx) => {
+            const note = getScoreMoyen(criterion.id, qIdx);
+            gRows.push(new TableRow({
+              children: [
+                cell(`• ${q}`, { pct: 52 }),
+                ...[1,2,3,4,5].map(n => cell(
+                  note === n ? 'X' : '',
+                  { center: true, bold: true, size: 20, color: note === n ? C_ORANGE : C_WHITE, bg: C_WHITE }
+                )),
+              ],
+            }));
+          });
         });
-      });
+      } else {
+        gRows.push(new TableRow({ children: [
+          cell('Grille non disponible', { pct: 100, colSpan: 6 }),
+        ]}));
+      }
 
       gRows.push(new TableRow({
         children: [
@@ -461,16 +584,16 @@ const RapportShortlist = () => {
       });
 
       const blob = await Packer.toBlob(doc);
-      saveAs(blob, `Rapport_Shortlist_${candidate.nom.replace(/\s+/g, '_')}.docx`);
+      saveAs(blob, `Rapport_Shortlist_${(candidate.nom || 'candidat').replace(/\s+/g, '_')}.docx`);
     } catch (err) {
       console.error(err);
-      alert("Erreur Word : " + err.message);
+      alert('Erreur Word : ' + err.message);
     } finally {
       setGenWord(false);
     }
   };
 
-  // ── Guards ──
+  /* ── Guards ── */
   if (!candidate) return (
     <div className="container py-4 text-center">
       <p className="text-danger fw-bold">Aucun candidat sélectionné.</p>
@@ -480,18 +603,12 @@ const RapportShortlist = () => {
   if (loading) return (
     <div className="d-flex justify-content-center mt-5">
       <div className="spinner-border text-primary" role="status">
-        <span className="visually-hidden">Chargement...</span>
+        <span className="visually-hidden">Chargement de la grille…</span>
       </div>
     </div>
   );
-  if (erreur) return (
-    <div className="container py-4">
-      <div className="alert alert-danger">{erreur}</div>
-      <button className="btn btn-secondary" onClick={() => navigate(-1)}>Retour</button>
-    </div>
-  );
 
-  // ── Styles ──
+  /* ── Styles ── */
   const colors = {
     header:   '#f9e4da',
     critere:  '#e0e0e0',
@@ -500,9 +617,9 @@ const RapportShortlist = () => {
     danger:   '#dc3545',
     darkBlue: '#1a1a6e',
   };
-  const tblStyle = { width: '100%', borderCollapse: 'collapse', fontSize: '11px', fontFamily: 'Arial, sans-serif' };
-  const tdBorder = { border: '1px solid #999', padding: '5px 7px', verticalAlign: 'middle', color: '#1a1a1a' };
-  const thBorder = { ...tdBorder, backgroundColor: colors.header, fontWeight: 'bold', textAlign: 'center', color: '#1a1a1a' };
+  const tblStyle  = { width: '100%', borderCollapse: 'collapse', fontSize: '11px', fontFamily: 'Arial, sans-serif' };
+  const tdBorder  = { border: '1px solid #999', padding: '5px 7px', verticalAlign: 'middle', color: '#1a1a1a' };
+  const thBorder  = { ...tdBorder, backgroundColor: colors.header, fontWeight: 'bold', textAlign: 'center', color: '#1a1a1a' };
   const inputStyle = {
     border: '1px solid #ccc', borderRadius: '4px', padding: '4px 8px',
     fontSize: '11px', fontFamily: 'Arial, sans-serif', color: '#1a1a1a',
@@ -514,6 +631,9 @@ const RapportShortlist = () => {
     resize: 'vertical', minHeight: '80px', backgroundColor: '#fafafa', lineHeight: '1.6',
   };
 
+  /* ────────────────────────────────────────────────────────────
+     RENDU
+  ────────────────────────────────────────────────────────────── */
   return (
     <>
       {/* ── Barre boutons ── */}
@@ -523,10 +643,14 @@ const RapportShortlist = () => {
       >
         <button className="btn btn-outline-secondary" onClick={() => navigate(-1)}>← Retour</button>
         <button className="btn btn-success px-4" onClick={generatePDF} disabled={generating}>
-          {generating ? <><span className="spinner-border spinner-border-sm me-2" />PDF...</> : 'Télécharger PDF'}
+          {generating
+            ? <><span className="spinner-border spinner-border-sm me-2" />PDF...</>
+            : 'Télécharger PDF'}
         </button>
         <button className="btn btn-primary px-4" onClick={generateWord} disabled={genWord}>
-          {genWord ? <><span className="spinner-border spinner-border-sm me-2" />Word...</> : 'Télécharger Word'}
+          {genWord
+            ? <><span className="spinner-border spinner-border-sm me-2" />Word...</>
+            : 'Télécharger Word'}
         </button>
         <div className="ms-auto d-flex align-items-center gap-3">
           <span className="text-muted small">
@@ -544,7 +668,15 @@ const RapportShortlist = () => {
         </div>
       </div>
 
-      {/* ── Rapport (capturé pour PDF) ── */}
+      {/* ── Alerte erreur non bloquante ── */}
+      {erreur && (
+        <div className="no-print alert alert-warning mx-auto mt-2" style={{ maxWidth: 800 }}>
+          <i className="bi bi-exclamation-triangle me-2" />
+          {erreur}
+        </div>
+      )}
+
+      {/* ── Rapport capturé pour PDF ── */}
       <div
         ref={printRef}
         style={{
@@ -573,11 +705,15 @@ const RapportShortlist = () => {
           <div style={{ color: colors.darkBlue, fontWeight: 'bold', fontSize: '13px', marginBottom: '8px' }}>
             Identification du candidat
           </div>
+
+          {/* Nom */}
           <div style={{ fontSize: '11px', marginBottom: '6px', display: 'flex', gap: '6px', alignItems: 'center' }}>
             <span>•</span>
-            <strong style={{ whiteSpace: 'nowrap' }}>Nom & Prénoms :</strong>
+            <strong style={{ whiteSpace: 'nowrap' }}>Nom &amp; Prénoms :</strong>
             <span>{candidate.nom} {candidate.prenoms}</span>
           </div>
+
+          {/* Rang */}
           <div style={{ fontSize: '11px', marginBottom: '6px', display: 'flex', gap: '6px', alignItems: 'center' }}>
             <span>•</span>
             <strong style={{ whiteSpace: 'nowrap' }}>Rang Shortlist :</strong>
@@ -586,6 +722,8 @@ const RapportShortlist = () => {
               borderRadius: '12px', padding: '1px 10px', fontWeight: 'bold', fontSize: '11px',
             }}>{toOrdinal(rang, genre.accord === 'e')}</span>
           </div>
+
+          {/* Score */}
           <div style={{ fontSize: '11px', marginBottom: '6px', display: 'flex', gap: '6px', alignItems: 'center' }}>
             <span>•</span>
             <strong style={{ whiteSpace: 'nowrap' }}>Score obtenu :</strong>
@@ -594,10 +732,11 @@ const RapportShortlist = () => {
             </span>
           </div>
 
+          {/* Champs éditables */}
           {[
-            { label: 'Salaire actuel',       value: salaireActuel,   setter: setSalaireActuel,   placeholder: 'Ex : 200 000 FCFA – 300 000 FCFA' },
-            { label: 'Prétention salariale', value: pretentionSal,   setter: setPretentionSal,   placeholder: 'Ex : ouvert à la négociation' },
-            { label: 'Disponibilité',        value: disponibilite,   setter: setDisponibilite,   placeholder: 'Ex : 1 mois' },
+            { label: 'Salaire actuel',       value: salaireActuel, setter: setSalaireActuel, placeholder: 'Ex : 200 000 FCFA – 300 000 FCFA' },
+            { label: 'Prétention salariale', value: pretentionSal, setter: setPretentionSal, placeholder: 'Ex : ouvert à la négociation' },
+            { label: 'Disponibilité',        value: disponibilite, setter: setDisponibilite, placeholder: 'Ex : 1 mois' },
           ].map((f, i) => (
             <div key={i} style={{ fontSize: '11px', marginBottom: '6px', display: 'flex', gap: '6px', alignItems: 'center' }}>
               <span>•</span>
@@ -644,7 +783,9 @@ const RapportShortlist = () => {
           <thead>
             <tr>
               <th style={{ ...thBorder, textAlign: 'left', width: '55%' }}>Critères d'évaluation</th>
-              <th style={{ ...thBorder, textAlign: 'center' }} colSpan={5}>Côte de performance (note moyenne examinateurs)</th>
+              <th style={{ ...thBorder, textAlign: 'center' }} colSpan={5}>
+                Côte de performance (note moyenne examinateurs)
+              </th>
             </tr>
             <tr>
               <th style={{ ...thBorder, textAlign: 'left' }}></th>
@@ -654,31 +795,39 @@ const RapportShortlist = () => {
             </tr>
           </thead>
           <tbody>
-            {criteria.map(criterion => (
-              <React.Fragment key={criterion.id}>
-                <tr>
-                  <td colSpan={6} style={{ ...tdBorder, backgroundColor: colors.critere, fontWeight: 'bold', paddingLeft: '8px' }}>
-                    {criterion.title}
-                  </td>
-                </tr>
-                {criterion.questions.map((q, qIdx) => {
-                  const note = getScoreMoyen(criterion.id, qIdx);
-                  return (
-                    <tr key={qIdx}>
-                      <td style={{ ...tdBorder, paddingLeft: '14px' }}>• {q}</td>
-                      {[1,2,3,4,5].map(n => (
-                        <td key={n} style={{
-                          ...tdBorder, textAlign: 'center', fontWeight: 'bold', fontSize: '14px',
-                          color: note === n ? colors.orange : '#ffffff',
-                        }}>
-                          {note === n ? 'X' : ''}
-                        </td>
-                      ))}
-                    </tr>
-                  );
-                })}
-              </React.Fragment>
-            ))}
+            {criteria.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ ...tdBorder, textAlign: 'center', color: '#9ca3af', fontStyle: 'italic' }}>
+                  Grille d'évaluation non disponible
+                </td>
+              </tr>
+            ) : (
+              criteria.map(criterion => (
+                <React.Fragment key={criterion.id}>
+                  <tr>
+                    <td colSpan={6} style={{ ...tdBorder, backgroundColor: colors.critere, fontWeight: 'bold', paddingLeft: '8px' }}>
+                      {criterion.title}
+                    </td>
+                  </tr>
+                  {criterion.questions?.map((q, qIdx) => {
+                    const note = getScoreMoyen(criterion.id, qIdx);
+                    return (
+                      <tr key={qIdx}>
+                        <td style={{ ...tdBorder, paddingLeft: '14px' }}>• {q}</td>
+                        {[1,2,3,4,5].map(n => (
+                          <td key={n} style={{
+                            ...tdBorder, textAlign: 'center', fontWeight: 'bold', fontSize: '14px',
+                            color: note === n ? colors.orange : '#ffffff',
+                          }}>
+                            {note === n ? 'X' : ''}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </React.Fragment>
+              ))
+            )}
             <tr>
               <td style={{ ...tdBorder, fontWeight: 'bold', backgroundColor: '#f0f0f0' }}>
                 Total / {noteBrute.max}
@@ -713,8 +862,7 @@ const RapportShortlist = () => {
             >
               {genPresentation
                 ? <><span className="spinner-border spinner-border-sm" style={{ width: '9px', height: '9px' }} /> En cours...</>
-                : '✦ Générer IA'
-              }
+                : '✦ Générer IA'}
             </button>
           </div>
           <textarea
@@ -747,7 +895,7 @@ const RapportShortlist = () => {
             <button
               className="no-print"
               onClick={generateAvisEntreprise}
-              disabled={genAvis || criteria.length === 0}
+              disabled={genAvis}
               style={{
                 position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
                 fontSize: '10px', padding: '2px 8px', backgroundColor: colors.darkBlue,
@@ -757,8 +905,7 @@ const RapportShortlist = () => {
             >
               {genAvis
                 ? <><span className="spinner-border spinner-border-sm" style={{ width: '9px', height: '9px' }} /> En cours...</>
-                : '✦ Générer IA'
-              }
+                : '✦ Générer IA'}
             </button>
           </div>
           <textarea
